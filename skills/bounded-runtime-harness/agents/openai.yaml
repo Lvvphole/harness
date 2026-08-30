@@ -1,3 +1,0 @@
-interface:
-  display_name: bounded-runtime-harness
-  short_description: Compile governance contracts into a fail-closed runtime
