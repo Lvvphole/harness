@@ -1,0 +1,20 @@
+{
+  "name": "harness-repo-plugins",
+  "interface": {
+    "displayName": "Harness Repository Plugins"
+  },
+  "plugins": [
+    {
+      "name": "bounded-runtime-harness",
+      "source": {
+        "source": "local",
+        "path": "./plugins/bounded-runtime-harness"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}
