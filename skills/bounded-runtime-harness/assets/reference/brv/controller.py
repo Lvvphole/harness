@@ -10,6 +10,9 @@ from .hooks import HookRegistry
 from .state import Phase, RunState
 from .worktree import PatchError, WorktreeTransaction
 
+ToolExecutor = Callable[[dict[str, Any], dict[str, Any]], tuple[bool, str]]
+OracleRunner = Callable[[dict[str, Any], Path], bool]
+
 
 class Controller:
     def __init__(
@@ -19,13 +22,15 @@ class Controller:
         evidence_dir: Path,
         run_id: str = "run-001",
         known_secrets: set[str] | None = None,
-        oracle_runner: Callable[[dict[str, Any], Path], bool] | None = None,
+        oracle_runner: OracleRunner | None = None,
+        tool_executor: ToolExecutor | None = None,
     ):
         self.authoritative = Path(authoritative)
         self.contract = contract
         self.evidence_dir = Path(evidence_dir)
         self.known_secrets = known_secrets
         self.oracle_runner = oracle_runner
+        self.tool_executor = tool_executor
         self.state = RunState(run_id, contract)
         self.hooks = HookRegistry()
         self.records: list[dict[str, Any]] = []
@@ -116,7 +121,16 @@ class Controller:
         if not ok:
             return False, reason
         self.state.advance(Phase.EXECUTE_IN_SANDBOX)
-        self.hooks.emit("after_tool_call", request=call, result={"status": "ok"})
+        if self.tool_executor is not None:
+            exec_ok, exec_reason = self.tool_executor(call, self.state.snapshot())
+            self.hooks.emit(
+                "after_tool_call",
+                request=call,
+                result={"status": "ok" if exec_ok else "error", "reason": exec_reason},
+            )
+            self.state.advance(Phase.OBSERVE_RESULT)
+            return exec_ok, exec_reason
+        self.hooks.emit("after_tool_call", request=call, result={"status": "authorized"})
         self.state.advance(Phase.OBSERVE_RESULT)
         return True, "ok"
 
