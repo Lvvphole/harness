@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import shutil
+import subprocess
 import tempfile
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
@@ -81,6 +84,168 @@ def apply_unified_diff(existing: str, diff: str) -> str:
     return "\n".join(old)
 
 
+# ---------------------------------------------------------------------------
+# Worktree backends
+# ---------------------------------------------------------------------------
+
+
+class WorktreeBackend(ABC):
+    """Acquires and releases an isolated working directory for one proposal."""
+
+    @abstractmethod
+    def acquire(self, authoritative: Path) -> Path:
+        """Return the path to an isolated working directory."""
+
+    @abstractmethod
+    def release(self) -> None:
+        """Release the working directory. Idempotent."""
+
+
+class TreehouseBackend(WorktreeBackend):
+    """Leased git worktree via the ``treehouse`` CLI.
+
+    Selected when ``treehouse`` is on PATH and *authoritative* lives
+    inside a git (or jj) repository.
+    """
+
+    def __init__(self) -> None:
+        self._lease_id: str | None = None
+        self._path: Path | None = None
+
+    def acquire(self, authoritative: Path) -> Path:
+        result = subprocess.run(
+            ["treehouse", "get", "--lease", "--json", "--no-fetch"],
+            cwd=authoritative,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        info = json.loads(result.stdout)
+        self._lease_id = info["lease_id"]
+        self._path = Path(info["path"])
+        return self._path
+
+    def release(self) -> None:
+        if self._path is None or self._lease_id is None:
+            return
+        subprocess.run(
+            [
+                "treehouse", "return", "--force",
+                "--if-lease-id", self._lease_id,
+                str(self._path),
+            ],
+            capture_output=True,
+        )
+        self._lease_id = None
+        self._path = None
+
+
+class GitWorktreeBackend(WorktreeBackend):
+    """Detached-HEAD linked worktree via ``git worktree add``.
+
+    Selected when the authoritative tree is a git repo with at least
+    one commit but ``treehouse`` is not available.
+    """
+
+    def __init__(self) -> None:
+        self._worktree: Path | None = None
+        self._parent: Path | None = None
+        self._authoritative: Path | None = None
+
+    def acquire(self, authoritative: Path) -> Path:
+        self._authoritative = authoritative
+        self._parent = Path(tempfile.mkdtemp(prefix="brv-gwt-"))
+        self._worktree = self._parent / "tree"
+        subprocess.run(
+            ["git", "worktree", "add", "--detach", str(self._worktree)],
+            cwd=authoritative,
+            capture_output=True,
+            check=True,
+        )
+        return self._worktree
+
+    def release(self) -> None:
+        if self._worktree is None:
+            return
+        subprocess.run(
+            ["git", "worktree", "remove", "--force", str(self._worktree)],
+            cwd=self._authoritative,
+            capture_output=True,
+        )
+        if self._parent and self._parent.exists():
+            shutil.rmtree(self._parent, ignore_errors=True)
+        self._worktree = None
+        self._parent = None
+        self._authoritative = None
+
+
+class TempCopyBackend(WorktreeBackend):
+    """Plain filesystem copy into a temp directory.
+
+    Fallback when the authoritative tree is not under version control.
+    """
+
+    def __init__(self) -> None:
+        self._temp: Path | None = None
+
+    def acquire(self, authoritative: Path) -> Path:
+        self._temp = Path(tempfile.mkdtemp(prefix="brv-"))
+        if authoritative.exists():
+            shutil.copytree(authoritative, self._temp, dirs_exist_ok=True)
+        return self._temp
+
+    def release(self) -> None:
+        if self._temp and self._temp.exists():
+            shutil.rmtree(self._temp, ignore_errors=True)
+        self._temp = None
+
+
+# ---------------------------------------------------------------------------
+# Backend selection
+# ---------------------------------------------------------------------------
+
+
+def _is_git_repo(path: Path) -> bool:
+    try:
+        r = subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            cwd=path, capture_output=True, timeout=5,
+        )
+        return r.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        return False
+
+
+def _git_has_head(path: Path) -> bool:
+    try:
+        r = subprocess.run(
+            ["git", "rev-parse", "--verify", "HEAD"],
+            cwd=path, capture_output=True, timeout=5,
+        )
+        return r.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        return False
+
+
+def _treehouse_available() -> bool:
+    return shutil.which("treehouse") is not None
+
+
+def select_backend(authoritative: Path) -> WorktreeBackend:
+    is_git = _is_git_repo(authoritative)
+    is_jj = authoritative.exists() and (authoritative / ".jj").is_dir()
+    if (is_git or is_jj) and _treehouse_available():
+        return TreehouseBackend()
+    if is_git and _git_has_head(authoritative):
+        return GitWorktreeBackend()
+    return TempCopyBackend()
+
+
+# ---------------------------------------------------------------------------
+# Transaction (controller contract unchanged)
+# ---------------------------------------------------------------------------
+
+
 class WorktreeTransaction:
     """Copy-on-write sandbox. Authoritative tree is untouched until commit.
 
@@ -88,16 +253,21 @@ class WorktreeTransaction:
     were hashed and gated, not a later mutation of the proposal.
     """
 
-    def __init__(self, authoritative: Path):
+    def __init__(
+        self,
+        authoritative: Path,
+        backend: WorktreeBackend | None = None,
+    ):
         self.authoritative = Path(authoritative)
         self.temp: Path | None = None
         self.bound_sha256: str | None = None
         self.bound_edits: list[dict[str, Any]] | None = None
+        self._backend: WorktreeBackend | None = backend
 
     def __enter__(self) -> "WorktreeTransaction":
-        self.temp = Path(tempfile.mkdtemp(prefix="brv-"))
-        if self.authoritative.exists():
-            shutil.copytree(self.authoritative, self.temp, dirs_exist_ok=True)
+        if self._backend is None:
+            self._backend = select_backend(self.authoritative)
+        self.temp = self._backend.acquire(self.authoritative)
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
@@ -142,8 +312,9 @@ class WorktreeTransaction:
         return written
 
     def discard(self) -> None:
-        if self.temp and self.temp.exists():
-            shutil.rmtree(self.temp, ignore_errors=True)
+        if self._backend is not None:
+            self._backend.release()
+            self._backend = None
         self.temp = None
         self.bound_sha256 = None
         self.bound_edits = None

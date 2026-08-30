@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -13,7 +16,15 @@ from brv.controller import Controller
 from brv.envelope import content_sha256, hash_proposal
 from brv.evidence import make_record
 from brv.gates import authorize_tool
-from brv.worktree import WorktreeTransaction, apply_unified_diff
+from brv.worktree import (
+    GitWorktreeBackend,
+    TempCopyBackend,
+    TreehouseBackend,
+    WorktreeBackend,
+    WorktreeTransaction,
+    apply_unified_diff,
+    select_backend,
+)
 
 
 def contract(**overrides):
@@ -304,6 +315,155 @@ class HarnessTests(unittest.TestCase):
         rec = self.ctl().ingest_proposal(self._candidate("not python at all !!!"))
         self.assertEqual(rec["gates"]["parse_compile"], "FAIL")
         self.assertFalse(rec["write_authorized"])
+
+
+# ---------------------------------------------------------------------------
+# Backend tests
+# ---------------------------------------------------------------------------
+
+_GIT_ENV = {
+    **os.environ,
+    "GIT_AUTHOR_NAME": "test",
+    "GIT_AUTHOR_EMAIL": "test@test",
+    "GIT_COMMITTER_NAME": "test",
+    "GIT_COMMITTER_EMAIL": "test@test",
+}
+
+
+def _init_git_repo(path: Path) -> None:
+    subprocess.run(["git", "init", str(path)], capture_output=True, check=True)
+    subprocess.run(
+        ["git", "add", "."], cwd=path, capture_output=True, check=True,
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "init"],
+        cwd=path, capture_output=True, check=True, env=_GIT_ENV,
+    )
+
+
+class TempCopyBackendTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp(prefix="brv-test-tcp-"))
+        (self.tmp / "src").mkdir()
+        (self.tmp / "src" / "f.txt").write_text("hello\n")
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_acquire_copies_tree(self):
+        backend = TempCopyBackend()
+        wt = backend.acquire(self.tmp)
+        self.assertTrue((wt / "src" / "f.txt").exists())
+        self.assertEqual((wt / "src" / "f.txt").read_text(), "hello\n")
+        backend.release()
+
+    def test_release_removes_tree(self):
+        backend = TempCopyBackend()
+        wt = backend.acquire(self.tmp)
+        backend.release()
+        self.assertFalse(wt.exists())
+
+    def test_release_is_idempotent(self):
+        backend = TempCopyBackend()
+        backend.acquire(self.tmp)
+        backend.release()
+        backend.release()
+
+    def test_transaction_uses_temp_copy(self):
+        with WorktreeTransaction(self.tmp, backend=TempCopyBackend()) as txn:
+            self.assertIsNotNone(txn.temp)
+            self.assertTrue((txn.temp / "src" / "f.txt").exists())
+
+
+class BackendSelectionTests(unittest.TestCase):
+    def test_non_vcs_selects_temp_copy(self):
+        tmp = Path(tempfile.mkdtemp(prefix="brv-test-sel-"))
+        try:
+            backend = select_backend(tmp)
+            self.assertIsInstance(backend, TempCopyBackend)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_git_repo_selects_git_worktree(self):
+        tmp = Path(tempfile.mkdtemp(prefix="brv-test-sel-"))
+        (tmp / "README").write_text("init\n")
+        try:
+            _init_git_repo(tmp)
+            backend = select_backend(tmp)
+            self.assertIsInstance(backend, GitWorktreeBackend)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_backend_abc_cannot_instantiate(self):
+        with self.assertRaises(TypeError):
+            WorktreeBackend()
+
+
+class GitWorktreeBackendTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp(prefix="brv-test-gwt-"))
+        (self.tmp / "src").mkdir()
+        (self.tmp / "src" / "mod.py").write_text("x = 1\n")
+        _init_git_repo(self.tmp)
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_acquire_creates_linked_worktree(self):
+        backend = GitWorktreeBackend()
+        wt = backend.acquire(self.tmp)
+        self.assertTrue(wt.exists())
+        self.assertTrue((wt / "src" / "mod.py").exists())
+        self.assertEqual((wt / "src" / "mod.py").read_text(), "x = 1\n")
+        backend.release()
+
+    def test_worktree_is_detached_head(self):
+        backend = GitWorktreeBackend()
+        wt = backend.acquire(self.tmp)
+        r = subprocess.run(
+            ["git", "symbolic-ref", "HEAD"],
+            cwd=wt, capture_output=True,
+        )
+        self.assertNotEqual(r.returncode, 0, "HEAD should be detached")
+        backend.release()
+
+    def test_release_removes_worktree(self):
+        backend = GitWorktreeBackend()
+        wt = backend.acquire(self.tmp)
+        backend.release()
+        self.assertFalse(wt.exists())
+
+    def test_release_is_idempotent(self):
+        backend = GitWorktreeBackend()
+        backend.acquire(self.tmp)
+        backend.release()
+        backend.release()
+
+    def test_transaction_with_git_backend(self):
+        backend = GitWorktreeBackend()
+        with WorktreeTransaction(self.tmp, backend=backend) as txn:
+            self.assertIsNotNone(txn.temp)
+            self.assertTrue((txn.temp / "src" / "mod.py").exists())
+        self.assertIsNone(txn.temp)
+
+    def test_edits_apply_and_commit_through_git_backend(self):
+        backend = GitWorktreeBackend()
+        edits = [{"path": "src/mod.py", "action": "modify", "source": "x = 2\n"}]
+        sha = "a" * 64
+        with WorktreeTransaction(self.tmp, backend=backend) as txn:
+            txn.bind(sha, edits)
+            txn.apply_to_temp(edits)
+            self.assertEqual((txn.temp / "src" / "mod.py").read_text(), "x = 2\n")
+            txn.commit(sha)
+        self.assertEqual((self.tmp / "src" / "mod.py").read_text(), "x = 2\n")
+
+    def test_discard_does_not_copy_back(self):
+        backend = GitWorktreeBackend()
+        edits = [{"path": "src/mod.py", "action": "modify", "source": "x = 9\n"}]
+        with WorktreeTransaction(self.tmp, backend=backend) as txn:
+            txn.bind("a" * 64, edits)
+            txn.apply_to_temp(edits)
+        self.assertEqual((self.tmp / "src" / "mod.py").read_text(), "x = 1\n")
 
 
 if __name__ == "__main__":
