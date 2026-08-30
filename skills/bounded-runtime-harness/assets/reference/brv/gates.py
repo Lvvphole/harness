@@ -9,6 +9,7 @@ from .predicates import (
     count_new_files,
     grows_public_exports,
     introduces_version_bump,
+    is_unsafe_path,
     net_line_delta,
     paths_in_scope,
     proposed_paths,
@@ -36,12 +37,19 @@ def _language_for(path: str) -> str | None:
 
 
 def _resulting_source(edit: dict[str, Any], worktree: Path) -> str | None:
+    path = edit.get("path") or ""
+    if is_unsafe_path(path):
+        raise PatchError(f"unsafe path: {path}")
     if edit.get("action") == "delete":
         return None
     if "source" in edit:
         return edit["source"]
     existing = ""
-    target = worktree / edit["path"]
+    target = worktree / path
+    try:
+        target.relative_to(worktree.resolve()) if target.is_absolute() else None
+    except ValueError as exc:
+        raise PatchError(f"path escapes sandbox: {path}") from exc
     if target.exists():
         existing = target.read_text()
     return apply_unified_diff(existing, edit.get("unified_diff") or "")

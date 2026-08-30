@@ -23,39 +23,62 @@ def sandbox_path(root: Path, rel: str) -> Path:
     return target
 
 
-def apply_unified_diff(existing: str, diff: str) -> str:
-    """Apply a unified diff by matching removed lines in place.
+def _hunks(diff: str) -> list[list[str]]:
+    hunks: list[list[str]] = []
+    current: list[str] = []
+    for ln in diff.splitlines():
+        if ln.startswith("+++") or ln.startswith("---") or ln.startswith("\\"):
+            continue
+        if ln.startswith("@@"):
+            if current:
+                hunks.append(current)
+                current = []
+            continue
+        current.append(ln)
+    if current:
+        hunks.append(current)
+    return hunks
 
-    Rejects diffs that cannot be applied exactly. Does not append plus-lines
-    to the end of the file when a replacement target exists.
+
+def _apply_hunk(old: list[str], ops: list[str]) -> list[str]:
+    old_side: list[str] = []
+    new_side: list[str] = []
+    for ln in ops:
+        if ln.startswith("+") and not ln.startswith("+++"):
+            new_side.append(ln[1:])
+        elif ln.startswith("-") and not ln.startswith("---"):
+            old_side.append(ln[1:])
+        else:
+            text = ln[1:] if ln.startswith(" ") else ln
+            old_side.append(text)
+            new_side.append(text)
+    if not old_side:
+        return old + new_side
+    n = len(old_side)
+    found = -1
+    for i in range(0, len(old) - n + 1):
+        if old[i : i + n] == old_side:
+            found = i
+            break
+    if found < 0:
+        raise PatchError("unified diff does not apply to existing source")
+    return old[:found] + new_side + old[found + n :]
+
+
+def apply_unified_diff(existing: str, diff: str) -> str:
+    """Apply a unified diff hunk by hunk.
+
+    Each hunk is matched independently so replacements on distant lines
+    are not flattened into one contiguous minus-sequence.
     """
     if not diff.strip():
         return existing
-    ops: list[str] = []
-    for ln in diff.splitlines():
-        if ln.startswith("+++") or ln.startswith("---") or ln.startswith("@@"):
-            continue
-        if ln.startswith("\\"):
-            continue
-        ops.append(ln)
-    minus = [ln[1:] for ln in ops if ln.startswith("-")]
-    plus = [ln[1:] for ln in ops if ln.startswith("+")]
     old = existing.splitlines()
-    if minus:
-        n = len(minus)
-        found = -1
-        for i in range(0, len(old) - n + 1):
-            if old[i : i + n] == minus:
-                found = i
-                break
-        if found < 0:
-            raise PatchError("unified diff does not apply to existing source")
-        new = old[:found] + plus + old[found + n :]
-    else:
-        new = old + plus
+    for hunk in _hunks(diff):
+        old = _apply_hunk(old, hunk)
     if existing.endswith("\n") or existing == "":
-        return "\n".join(new) + ("\n" if new else "")
-    return "\n".join(new)
+        return "\n".join(old) + ("\n" if old else "")
+    return "\n".join(old)
 
 
 class WorktreeTransaction:
