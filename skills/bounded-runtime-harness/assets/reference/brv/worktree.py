@@ -100,10 +100,7 @@ class WorktreeBackend(ABC):
 
 
 class TempCopyBackend(WorktreeBackend):
-    """Plain filesystem copy into a temp directory.
-
-    Fallback when the authoritative tree is not under version control.
-    """
+    """Plain filesystem copy into a temp directory."""
 
     def __init__(self) -> None:
         self._temp: Path | None = None
