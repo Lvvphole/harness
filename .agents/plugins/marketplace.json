@@ -7,8 +7,8 @@
     {
       "name": "bounded-runtime-harness",
       "source": {
-        "source": "local",
-        "path": "./plugins/bounded-runtime-harness"
+        "source": "url",
+        "url": "./"
       },
       "policy": {
         "installation": "AVAILABLE",

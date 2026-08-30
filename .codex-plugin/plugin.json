@@ -1,0 +1,36 @@
+{
+  "name": "bounded-runtime-harness",
+  "version": "1.2.0",
+  "description": "Skills-only plugin that packages evaluation-first governance and a bounded runtime harness for ChatGPT and Codex.",
+  "author": {
+    "name": "Emory Harris",
+    "email": "lvvphole@gmail.com",
+    "url": "https://github.com/Lvvphole"
+  },
+  "homepage": "https://github.com/Lvvphole/harness",
+  "repository": "https://github.com/Lvvphole/harness",
+  "license": "MIT",
+  "keywords": [
+    "governance",
+    "harness",
+    "bounded-runtime",
+    "skills",
+    "codex",
+    "chatgpt"
+  ],
+  "skills": "./skills/",
+  "hooks": {},
+  "interface": {
+    "displayName": "Bounded Runtime Harness",
+    "shortDescription": "Evaluation-first governance and fail-closed runtime skills",
+    "longDescription": "Install this plugin to load the governance skill and the bounded-runtime-harness skill. Governance writes evaluation-first markdown contracts. The harness skill compiles those contracts into proposal envelopes, inference gates, runtime gates, and forbidden-action tests. Layer 0 decoder constraints are best-effort on ChatGPT UI.",
+    "developerName": "Emory Harris",
+    "category": "Developer Tools",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://github.com/Lvvphole/harness",
+    "defaultPrompt": [
+      "Scaffold evaluation-first governance files for this repository.",
+      "Compile existing .harness contracts into a bounded runtime controller with forbidden-action tests."
+    ]
+  }
+}
