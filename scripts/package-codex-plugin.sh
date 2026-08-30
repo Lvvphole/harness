@@ -47,8 +47,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-[[ -d "$REPO_ROOT/.git" ]] || die "repo root is not a git checkout: $REPO_ROOT"
 command -v git >/dev/null || die "git not found"
+git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null || die "repo root is not a git checkout: $REPO_ROOT"
 command -v jq >/dev/null || die "jq not found"
 command -v tar >/dev/null || die "tar not found"
 

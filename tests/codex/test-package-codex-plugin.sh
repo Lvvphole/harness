@@ -36,7 +36,7 @@ assert_not_matches() {
 echo "Codex package archive tests"
 
 archive="$TEST_ROOT/harness.zip"
-if output="$("$SCRIPT_UNDER_TEST" --allow-dirty --output "$archive" 2>&1)"; then
+if output="$(bash "$SCRIPT_UNDER_TEST" --allow-dirty --output "$archive" 2>&1)"; then
   pass "package script exits successfully"
 else
   fail "package script exits successfully"
