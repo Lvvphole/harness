@@ -6,9 +6,9 @@ Behavior-preserving structure change lands and every golden still passes.
 
 ## Oracles
 
-- cmd: `python3 plugins/bounded-runtime-harness/skills/bounded-runtime-harness/assets/reference/tests/test_harness.py`
+- cmd: `python3 skills/bounded-runtime-harness/assets/reference/tests/test_harness.py`
 - expect: exit 0
-- cmd: `bash plugins/bounded-runtime-harness/skills/bounded-runtime-harness/scripts/eval-skill.sh`
+- cmd: `bash skills/bounded-runtime-harness/scripts/eval-skill.sh`
 - expect: exit 0
 - cmd: `bash scripts/eval-governance-tree.sh .`
 - expect: exit 0
@@ -23,7 +23,7 @@ Behavior-preserving structure change lands and every golden still passes.
 
 - max files: 12
 - max turns: 16
-- allowed paths: `plugins/bounded-runtime-harness/`, `.harness/`, `scripts/`
+- allowed paths: `skills/`, `.codex-plugin/`, `.harness/`, `scripts/`, `tests/codex/`
 
 ## Done when
 

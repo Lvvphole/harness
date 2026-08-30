@@ -10,7 +10,7 @@ Read this file to decide which context to load. Each section defines a task type
 
 - Harness: `.harness/evals.md`, `.harness/inference-loop.md`, `.harness/runtime-loop.md`, `.harness/contracts/feature-development.md`
 - Policy: `.governance/testing.md`, `.governance/security.md`, `.governance/style.md`
-- Working: `plugins/bounded-runtime-harness/`, `.agents/plugins/`, `.harness/`, `.governance/`, `scripts/`
+- Working: `skills/`, `.codex-plugin/`, `.agents/plugins/`, `.harness/`, `.governance/`, `scripts/`, `tests/codex/`
 
 ### Process
 
@@ -97,7 +97,7 @@ Satisfy `.harness/contracts/review-repair.md`. Do not accept a proxy.
 
 - Harness: `.harness/evals.md`, `.harness/inference-loop.md`, `.harness/runtime-loop.md`, `.harness/contracts/refactor.md`
 - Policy: `.governance/style.md`, `.governance/testing.md`
-- Working: `plugins/bounded-runtime-harness/`, `.harness/`, `scripts/`
+- Working: `skills/`, `.codex-plugin/`, `.harness/`, `scripts/`, `tests/codex/`
 
 ### Process
 
@@ -143,7 +143,7 @@ Satisfy `.harness/contracts/testing.md`. Do not accept a proxy.
 
 - Harness: `.harness/evals.md`, `.harness/inference-loop.md`, `.harness/runtime-loop.md`, `.harness/contracts/documentation.md`
 - Policy: `.governance/style.md`, `.governance/testing.md`
-- Working: `README.md`, `plugins/bounded-runtime-harness/README.md`, `CONTEXT.md`
+- Working: `README.md`, `CONTEXT.md`
 
 ### Process
 
@@ -165,7 +165,7 @@ Satisfy `.harness/contracts/documentation.md`. Do not accept a proxy.
 
 - Harness: `.harness/evals.md`, `.harness/inference-loop.md`, `.harness/runtime-loop.md`, `.harness/contracts/plugin-packaging.md`
 - Policy: `.governance/testing.md`, `.governance/security.md`
-- Working: `plugins/bounded-runtime-harness/`, `.agents/plugins/`
+- Working: `.codex-plugin/`, `skills/`, `.agents/plugins/`, `scripts/package-codex-plugin.sh`, `tests/codex/`
 
 ### Process
 

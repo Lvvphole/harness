@@ -11,11 +11,12 @@ Prefer deterministic oracles: shell assertions, JSON Schema parse, Python `ast.p
 | Case | Oracle | Expected |
 | --- | --- | --- |
 | Governance tree complete | `bash scripts/eval-governance-tree.sh .` | exit 0 |
-| Bounded-runtime skill integrity | `bash plugins/bounded-runtime-harness/skills/bounded-runtime-harness/scripts/eval-skill.sh` | exit 0 |
-| Governance skill integrity | `bash plugins/bounded-runtime-harness/skills/governance/scripts/eval-skill.sh` | exit 0 |
-| Forbidden actions cannot execute | `python3 plugins/bounded-runtime-harness/skills/bounded-runtime-harness/assets/reference/tests/test_harness.py` | exit 0 |
-| Plugin manifest parse | `python3 -c "import json; json.load(open('plugins/bounded-runtime-harness/.codex-plugin/plugin.json'))"` | exit 0 |
+| Bounded-runtime skill integrity | `bash skills/bounded-runtime-harness/scripts/eval-skill.sh` | exit 0 |
+| Governance skill integrity | `bash skills/governance/scripts/eval-skill.sh` | exit 0 |
+| Forbidden actions cannot execute | `python3 skills/bounded-runtime-harness/assets/reference/tests/test_harness.py` | exit 0 |
+| Plugin manifest parse | `python3 -c "import json; json.load(open('.codex-plugin/plugin.json'))"` | exit 0 |
 | Marketplace parse | `python3 -c "import json; json.load(open('.agents/plugins/marketplace.json'))"` | exit 0 |
+| Marketplace source is repo root | marketplace `plugins[0].source.url` equals `./` | boolean true |
 | Plugin name is kebab-case | manifest `name` equals `bounded-runtime-harness` | boolean true |
 | Skills path present | manifest `skills` equals `./skills/` | boolean true |
 

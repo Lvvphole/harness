@@ -8,9 +8,9 @@ A failing golden or test is reproduced first, then the defect is fixed, then the
 
 - cmd: `bash scripts/eval-governance-tree.sh .`
 - expect: exit 0
-- cmd: `bash plugins/bounded-runtime-harness/skills/bounded-runtime-harness/scripts/eval-skill.sh`
+- cmd: `bash skills/bounded-runtime-harness/scripts/eval-skill.sh`
 - expect: exit 0
-- cmd: `python3 plugins/bounded-runtime-harness/skills/bounded-runtime-harness/assets/reference/tests/test_harness.py`
+- cmd: `python3 skills/bounded-runtime-harness/assets/reference/tests/test_harness.py`
 - expect: exit 0
 
 ## Invariants
