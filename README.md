@@ -1,45 +1,51 @@
 # Harness
 
-Repository for the Bounded Runtime Harness ChatGPT and Codex plugin.
-
-The plugin packages the `governance` skill and the `bounded-runtime-harness` skill. Governance writes evaluation-first markdown contracts. The harness turns those contracts into an executable, fail-closed controller.
+Skills-only ChatGPT and Codex plugin. The repository root is the plugin.
 
 Public repository: https://github.com/Lvvphole/harness
 
-## What this repository contains
+## What ships
 
-| Path | Role |
-| --- | --- |
-| `plugins/bounded-runtime-harness/` | Packaged plugin (`plugin.json` + skills) |
-| `.agents/plugins/marketplace.json` | Repo marketplace catalog |
-| `.harness/` | Evaluation catalog, inference loop, runtime loop, task contracts |
-| `.governance/` | Security, testing, style, review-repair invariants, risk register |
-| `scripts/eval-governance-tree.sh` | Deterministic check that the governance tree is complete |
-
-## Plugin structure
+The Codex/OpenAI package contains only:
 
 ```
-plugins/bounded-runtime-harness/
-├── .codex-plugin/plugin.json
-└── skills/
-    ├── governance/
-    └── bounded-runtime-harness/
+.codex-plugin/plugin.json
+skills/governance/
+skills/bounded-runtime-harness/
+README.md
+LICENSE
 ```
 
-Install from this repository marketplace, or copy `plugins/bounded-runtime-harness` into a personal marketplace.
+Repo-root `.harness/`, `.governance/`, `scripts/`, and `tests/` are source-only. They are not in the portal archive.
+
+## Install
+
+Add this repository as a marketplace (source is `./`):
+
+```bash
+codex plugin marketplace add https://github.com/Lvvphole/harness
+```
+
+Or package a rootless archive:
+
+```bash
+bash scripts/package-codex-plugin.sh --output /tmp/harness.zip
+```
+
+## Skills
+
+- `governance` — write the evaluation-first file tree
+- `bounded-runtime-harness` — compile those contracts into a fail-closed runtime workflow
+
+No MCP server is bundled. ChatGPT UI cannot mask the host decoder.
 
 ## Verification
 
 ```bash
+bash tests/codex/test-marketplace-manifest.sh
+bash tests/codex/test-package-codex-plugin.sh
 bash scripts/eval-governance-tree.sh .
-bash plugins/bounded-runtime-harness/skills/bounded-runtime-harness/scripts/eval-skill.sh
-python3 plugins/bounded-runtime-harness/skills/bounded-runtime-harness/assets/reference/tests/test_harness.py
+bash skills/bounded-runtime-harness/scripts/eval-skill.sh
+bash skills/governance/scripts/eval-skill.sh
+python3 skills/bounded-runtime-harness/assets/reference/tests/test_harness.py
 ```
-
-Agent instructions start at [AGENTS.md](./AGENTS.md). Task routing is in [CONTEXT.md](./CONTEXT.md).
-
-## Assumptions
-
-- The empty `Lvvphole/harness` repository is the packaging home for this plugin.
-- No MCP server is bundled in v1.1.0. Skills and existing host tools are sufficient for the workflow.
-- Python 3 is available for the reference harness tests.
