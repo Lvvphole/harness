@@ -12,6 +12,7 @@ from .worktree import PatchError, WorktreeTransaction
 
 ToolExecutor = Callable[[dict[str, Any], dict[str, Any]], tuple[bool, str]]
 OracleRunner = Callable[[dict[str, Any], Path], bool]
+MUTATING_TOOLS = {"write_file"}
 
 
 class Controller:
@@ -72,21 +73,58 @@ class Controller:
         )
         self.state.write_authorized = True
 
-        if parsed.get("tool_calls"):
-            for call in parsed["tool_calls"]:
-                auth_ok, reason = self.authorize_and_maybe_execute(call)
-                if not auth_ok:
-                    self.state.write_authorized = False
-                    self.state.advance(Phase.BLOCKED)
-                    return self._persist(
-                        proposal_sha, gates, "HALT", reasons + [reason], parsed
-                    )
+        staged_writes, pending_exec, auth_fail = self._authorize_tools(parsed)
+        if auth_fail is not None:
+            self.state.write_authorized = False
+            self.state.advance(Phase.BLOCKED)
+            return self._persist(proposal_sha, gates, "HALT", reasons + [auth_fail], parsed)
 
-        edits = as_edits(parsed, self.authoritative)
+        edits = as_edits(parsed, self.authoritative) + staged_writes
+        if staged_writes:
+            preview = {
+                "schema_version": "1.0",
+                "contract_id": parsed["contract_id"],
+                "intent": "edit",
+                "edits": [
+                    {
+                        "path": e["path"],
+                        "action": e["action"],
+                        "unified_diff": e.get("unified_diff", ""),
+                        **({"source": e["source"]} if "source" in e else {}),
+                    }
+                    for e in edits
+                ],
+                "tool_calls": [],
+            }
+            extra_gates, extra_reasons, _ = evaluate_inference(
+                preview,
+                self.contract,
+                self.authoritative,
+                self.state.attempt,
+                self.known_secrets,
+            )
+            if decide(extra_gates) != "ACCEPT":
+                self.state.write_authorized = False
+                return self._persist(
+                    proposal_sha,
+                    extra_gates,
+                    "HALT",
+                    reasons + extra_reasons,
+                    parsed,
+                )
+
         try:
             with WorktreeTransaction(self.authoritative) as txn:
                 txn.bind(proposal_sha, edits)
                 txn.apply_to_temp(edits)
+                for call in pending_exec:
+                    ok, reason = self._execute_on_temp(call, txn.temp)
+                    if not ok:
+                        self.state.write_authorized = False
+                        self.state.advance(Phase.BLOCKED)
+                        return self._persist(
+                            proposal_sha, gates, "HALT", reasons + [reason], parsed
+                        )
                 if self.oracle_runner:
                     self.state.advance(Phase.RUN_ORACLE)
                     ok = self.oracle_runner(self.contract, txn.temp or self.authoritative)
@@ -114,25 +152,68 @@ class Controller:
         self.state.advance(Phase.PASS)
         return self._persist(proposal_sha, gates, "ACCEPT", reasons, parsed)
 
-    def authorize_and_maybe_execute(self, call: dict[str, Any]) -> tuple[bool, str]:
+    def _authorize_tools(
+        self, parsed: dict[str, Any]
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str | None]:
+        staged: list[dict[str, Any]] = []
+        pending: list[dict[str, Any]] = []
+        for call in parsed.get("tool_calls") or []:
+            try:
+                ok, reason = self.authorize_and_maybe_execute(call, execute=False)
+            except Exception as exc:
+                return [], [], f"executor error: {exc}"
+            if not ok:
+                return [], [], reason
+            if call.get("name") in MUTATING_TOOLS:
+                args = call.get("args") or {}
+                body = args.get("content", args.get("source"))
+                if body is not None:
+                    staged.append(
+                        {
+                            "path": args["path"],
+                            "action": "modify",
+                            "source": body,
+                        }
+                    )
+            else:
+                pending.append(call)
+        return staged, pending, None
+
+    def _execute_on_temp(self, call: dict[str, Any], temp: Path | None) -> tuple[bool, str]:
+        self.state.advance(Phase.EXECUTE_IN_SANDBOX)
+        snapshot = self.state.snapshot()
+        snapshot["worktree"] = str(temp) if temp is not None else None
+        try:
+            if self.tool_executor is None:
+                self.hooks.emit("after_tool_call", request=call, result={"status": "authorized"})
+                self.state.advance(Phase.OBSERVE_RESULT)
+                return True, "ok"
+            ok, reason = self.tool_executor(call, snapshot)
+        except Exception as exc:
+            ok, reason = False, f"executor error: {exc}"
+        self.hooks.emit(
+            "after_tool_call",
+            request=call,
+            result={"status": "ok" if ok else "error", "reason": reason},
+        )
+        self.state.advance(Phase.OBSERVE_RESULT)
+        return ok, reason
+
+    def authorize_and_maybe_execute(
+        self, call: dict[str, Any], execute: bool = True
+    ) -> tuple[bool, str]:
         self.state.advance(Phase.AUTHORIZE_TOOL_CALL)
         self.hooks.emit("before_tool_call", request=call, state=self.state.snapshot())
-        ok, reason = authorize_tool(call, self.contract, self.state.snapshot())
+        try:
+            ok, reason = authorize_tool(call, self.contract, self.state.snapshot())
+        except Exception as exc:
+            return False, f"executor error: {exc}"
         if not ok:
             return False, reason
-        self.state.advance(Phase.EXECUTE_IN_SANDBOX)
-        if self.tool_executor is not None:
-            exec_ok, exec_reason = self.tool_executor(call, self.state.snapshot())
-            self.hooks.emit(
-                "after_tool_call",
-                request=call,
-                result={"status": "ok" if exec_ok else "error", "reason": exec_reason},
-            )
-            self.state.advance(Phase.OBSERVE_RESULT)
-            return exec_ok, exec_reason
-        self.hooks.emit("after_tool_call", request=call, result={"status": "authorized"})
-        self.state.advance(Phase.OBSERVE_RESULT)
-        return True, "ok"
+        if not execute or call.get("name") in MUTATING_TOOLS:
+            self.hooks.emit("after_tool_call", request=call, result={"status": "authorized"})
+            return True, "ok"
+        return self._execute_on_temp(call, None)
 
     def _persist(
         self,
