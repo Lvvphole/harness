@@ -61,26 +61,43 @@ def proposed_paths(proposal: dict[str, Any]) -> list[str]:
     return paths
 
 
-def _safe_existing_text(worktree: Path | None, rel: str) -> str | None:
+def _safe_target(worktree: Path | None, rel: str):
     if worktree is None or is_unsafe_path(rel):
         return None
     from .worktree import PatchError, sandbox_path
 
     try:
-        target = sandbox_path(worktree, rel)
-    except PatchError:
+        return sandbox_path(worktree, rel)
+    except (PatchError, OSError):
         return None
-    if not target.exists() or not target.is_file():
+
+
+def _safe_exists(worktree: Path | None, rel: str) -> bool:
+    target = _safe_target(worktree, rel)
+    try:
+        return bool(target and target.exists() and target.is_file())
+    except OSError:
+        return False
+
+
+def _safe_existing_text(worktree: Path | None, rel: str) -> str | None:
+    target = _safe_target(worktree, rel)
+    if target is None:
         return None
-    return target.read_text()
+    try:
+        if not target.exists() or not target.is_file():
+            return None
+        return target.read_text()
+    except (OSError, UnicodeDecodeError):
+        return None
 
 
 def count_new_files(proposal: dict[str, Any], worktree: Path) -> int:
     if _is_candidate(proposal):
-        return 0 if _safe_existing_text(worktree, proposal["path"]) is not None else 1
+        return 0 if _safe_exists(worktree, proposal["path"]) else 1
     n = 0
     for edit in proposal.get("edits", []):
-        if edit["action"] == "create" and _safe_existing_text(worktree, edit["path"]) is None:
+        if edit["action"] == "create" and not _safe_exists(worktree, edit["path"]):
             n += 1
     return n
 

@@ -39,7 +39,7 @@ def _copy_tree(src: Path, dst: Path) -> None:
         if item.is_dir():
             _copy_tree(item, target)
         elif item.is_file():
-            shutil.copyfile(item, target)
+            shutil.copy2(item, target)
 
 
 def _hunks(diff: str) -> list[list[str]]:
@@ -127,7 +127,12 @@ class WorktreeTransaction:
             if "source" in edit:
                 target.write_bytes(edit["source"].encode("utf-8"))
                 continue
-            existing = target.read_text() if target.exists() and target.is_file() else ""
+            existing = ""
+            if target.exists() and target.is_file():
+                try:
+                    existing = target.read_text()
+                except (OSError, UnicodeDecodeError) as exc:
+                    raise PatchError(f"cannot read {edit['path']}: {exc}") from exc
             target.write_text(apply_unified_diff(existing, edit.get("unified_diff") or ""))
 
     def commit(self, proposal_sha256: str) -> list[Path]:
