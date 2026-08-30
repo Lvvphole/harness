@@ -16,11 +16,30 @@ class PatchError(ValueError):
 def sandbox_path(root: Path, rel: str) -> Path:
     if is_unsafe_path(rel):
         raise PatchError(f"unsafe path: {rel}")
-    target = (root / rel).resolve()
-    base = root.resolve()
+    base = Path(root).resolve()
+    current = base
+    parts = [part for part in rel.replace("\\", "/").split("/") if part not in ("", ".")]
+    for part in parts:
+        nxt = current / part
+        if nxt.is_symlink():
+            raise PatchError(f"symlink refused: {rel}")
+        current = nxt
+    target = current.resolve()
     if target != base and base not in target.parents:
         raise PatchError(f"path escapes sandbox: {rel}")
     return target
+
+
+def _copy_tree(src: Path, dst: Path) -> None:
+    dst.mkdir(parents=True, exist_ok=True)
+    for item in src.iterdir():
+        if item.is_symlink():
+            continue
+        target = dst / item.name
+        if item.is_dir():
+            _copy_tree(item, target)
+        elif item.is_file():
+            shutil.copyfile(item, target)
 
 
 def _hunks(diff: str) -> list[list[str]]:
@@ -66,11 +85,6 @@ def _apply_hunk(old: list[str], ops: list[str]) -> list[str]:
 
 
 def apply_unified_diff(existing: str, diff: str) -> str:
-    """Apply a unified diff hunk by hunk.
-
-    Each hunk is matched independently so replacements on distant lines
-    are not flattened into one contiguous minus-sequence.
-    """
     if not diff.strip():
         return existing
     old = existing.splitlines()
@@ -82,12 +96,6 @@ def apply_unified_diff(existing: str, diff: str) -> str:
 
 
 class WorktreeTransaction:
-    """Copy-on-write sandbox. Authoritative tree is untouched until commit.
-
-    The decisive invariant: bytes written on commit are the bytes that
-    were hashed and gated, not a later mutation of the proposal.
-    """
-
     def __init__(self, authoritative: Path):
         self.authoritative = Path(authoritative)
         self.temp: Path | None = None
@@ -97,7 +105,7 @@ class WorktreeTransaction:
     def __enter__(self) -> "WorktreeTransaction":
         self.temp = Path(tempfile.mkdtemp(prefix="brv-"))
         if self.authoritative.exists():
-            shutil.copytree(self.authoritative, self.temp, dirs_exist_ok=True)
+            _copy_tree(self.authoritative, self.temp)
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
@@ -112,14 +120,14 @@ class WorktreeTransaction:
         for edit in edits:
             target = sandbox_path(self.temp, edit["path"])
             if edit["action"] == "delete":
-                if target.exists():
+                if target.exists() and not target.is_symlink():
                     target.unlink()
                 continue
             target.parent.mkdir(parents=True, exist_ok=True)
             if "source" in edit:
                 target.write_bytes(edit["source"].encode("utf-8"))
                 continue
-            existing = target.read_text() if target.exists() else ""
+            existing = target.read_text() if target.exists() and target.is_file() else ""
             target.write_text(apply_unified_diff(existing, edit.get("unified_diff") or ""))
 
     def commit(self, proposal_sha256: str) -> list[Path]:
@@ -127,17 +135,23 @@ class WorktreeTransaction:
             raise RuntimeError("commit hash mismatch: write refused")
         if self.temp is None or self.bound_edits is None:
             raise RuntimeError("no bound proposal")
-        written: list[Path] = []
+        planned: list[tuple[Path, bytes | None]] = []
         for edit in self.bound_edits:
-            src = sandbox_path(self.temp, edit["path"])
             dest = sandbox_path(self.authoritative, edit["path"])
             if edit["action"] == "delete":
-                if dest.exists():
+                planned.append((dest, None))
+                continue
+            src = sandbox_path(self.temp, edit["path"])
+            planned.append((dest, src.read_bytes()))
+        written: list[Path] = []
+        for dest, payload in planned:
+            if payload is None:
+                if dest.exists() and dest.is_file() and not dest.is_symlink():
                     dest.unlink()
                 written.append(dest)
                 continue
             dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_bytes(src.read_bytes())
+            dest.write_bytes(payload)
             written.append(dest)
         return written
 

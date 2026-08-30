@@ -16,10 +16,21 @@ EXPORT_RE = re.compile(r"^\s*export\s+", re.MULTILINE)
 def is_unsafe_path(raw: str) -> bool:
     if not isinstance(raw, str) or not raw.strip():
         return True
-    if raw.startswith("/") or raw.startswith("\\") or Path(raw).is_absolute():
+    if "\x00" in raw or raw.startswith("~"):
         return True
-    parts = raw.replace("\\", "/").split("/")
-    return any(part == ".." for part in parts)
+    normalized = raw.replace("\\", "/")
+    if normalized.startswith("/") or normalized.startswith("//"):
+        return True
+    if Path(raw).is_absolute():
+        return True
+    parts = [part for part in normalized.split("/") if part not in ("", ".")]
+    if not parts:
+        return True
+    if any(part == ".." for part in parts):
+        return True
+    if ":" in parts[0]:
+        return True
+    return False
 
 
 def paths_in_scope(paths: list[str], allowed: list[str]) -> list[str]:
@@ -50,12 +61,26 @@ def proposed_paths(proposal: dict[str, Any]) -> list[str]:
     return paths
 
 
+def _safe_existing_text(worktree: Path | None, rel: str) -> str | None:
+    if worktree is None or is_unsafe_path(rel):
+        return None
+    from .worktree import PatchError, sandbox_path
+
+    try:
+        target = sandbox_path(worktree, rel)
+    except PatchError:
+        return None
+    if not target.exists() or not target.is_file():
+        return None
+    return target.read_text()
+
+
 def count_new_files(proposal: dict[str, Any], worktree: Path) -> int:
     if _is_candidate(proposal):
-        return 0 if (worktree / proposal["path"]).exists() else 1
+        return 0 if _safe_existing_text(worktree, proposal["path"]) is not None else 1
     n = 0
     for edit in proposal.get("edits", []):
-        if edit["action"] == "create" and not (worktree / edit["path"]).exists():
+        if edit["action"] == "create" and _safe_existing_text(worktree, edit["path"]) is None:
             n += 1
     return n
 
@@ -88,16 +113,10 @@ def _python_public_names(source: str) -> set[str]:
 def grows_public_exports(proposal: dict[str, Any], worktree: Path | None = None) -> bool:
     if _is_candidate(proposal):
         new = proposal.get("source") or ""
-        old = ""
-        if worktree is not None:
-            target = worktree / proposal["path"]
-            if target.exists():
-                old = target.read_text()
+        old = _safe_existing_text(worktree, proposal["path"]) or ""
         if proposal.get("language") == "python":
             return len(_python_public_names(new) - _python_public_names(old)) > 0
-        added_ex = len(EXPORT_RE.findall(new))
-        removed_ex = len(EXPORT_RE.findall(old))
-        return added_ex > removed_ex
+        return len(EXPORT_RE.findall(new)) > len(EXPORT_RE.findall(old))
     for edit in proposal.get("edits", []):
         diff = edit.get("unified_diff") or ""
         added = [ln[1:] for ln in diff.splitlines() if ln.startswith("+") and not ln.startswith("+++")]
@@ -112,12 +131,8 @@ def grows_public_exports(proposal: dict[str, Any], worktree: Path | None = None)
 def net_line_delta(proposal: dict[str, Any], worktree: Path | None = None) -> int:
     if _is_candidate(proposal):
         new_n = len((proposal.get("source") or "").splitlines())
-        old_n = 0
-        if worktree is not None:
-            target = worktree / proposal["path"]
-            if target.exists():
-                old_n = len(target.read_text().splitlines())
-        return new_n - old_n
+        old = _safe_existing_text(worktree, proposal["path"]) or ""
+        return new_n - len(old.splitlines()) if old else new_n
     delta = 0
     for edit in proposal.get("edits", []):
         diff = edit.get("unified_diff") or ""
