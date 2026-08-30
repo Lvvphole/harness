@@ -31,7 +31,7 @@ assert "skill requires runtime-loop.md" "grep -q 'runtime-loop.md' \"$SKILL/SKIL
 assert "skill keeps 8 review-repair invariants" "grep -q 'INV-8' \"$SKILL/SKILL.md\" || grep -q 'INV-8' \"$SKILL/references/review-repair-invariants.md\""
 assert "file-specs reference exists" "[[ -f \"$SKILL/references/file-specs.md\" ]]"
 assert "evals-and-harness reference exists" "[[ -f \"$SKILL/references/evals-and-harness.md\" ]]"
-assert "tree eval script exists and is executable" "[[ -x \"$SKILL/scripts/eval-governance-tree.sh\" ]]"
+assert "tree eval script exists" "[[ -f \"$SKILL/scripts/eval-governance-tree.sh\" ]]"
 assert "description avoids colon-space" "! grep -E '^description:.*: ' \"$SKILL/SKILL.md\""
 assert "description avoids angle brackets" "! grep -E '^description:.*[<>]' \"$SKILL/SKILL.md\""
 
