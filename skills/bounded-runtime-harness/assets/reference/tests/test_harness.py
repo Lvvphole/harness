@@ -384,13 +384,13 @@ class BackendSelectionTests(unittest.TestCase):
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
-    def test_git_repo_selects_git_worktree(self):
+    def test_git_repo_without_treehouse_selects_temp_copy(self):
         tmp = Path(tempfile.mkdtemp(prefix="brv-test-sel-"))
         (tmp / "README").write_text("init\n")
         try:
             _init_git_repo(tmp)
             backend = select_backend(tmp)
-            self.assertIsInstance(backend, GitWorktreeBackend)
+            self.assertIsInstance(backend, TempCopyBackend)
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
