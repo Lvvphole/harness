@@ -5,9 +5,7 @@ from .envelope import hash_proposal, parse_proposal
 from .evidence import DecisionRecord
 from .state import RunState, Phase
 from .worktree import (
-    GitWorktreeBackend,
     TempCopyBackend,
-    TreehouseBackend,
     WorktreeBackend,
     select_backend,
 )
@@ -20,8 +18,6 @@ __all__ = [
     "RunState",
     "Phase",
     "WorktreeBackend",
-    "TreehouseBackend",
-    "GitWorktreeBackend",
     "TempCopyBackend",
     "select_backend",
 ]

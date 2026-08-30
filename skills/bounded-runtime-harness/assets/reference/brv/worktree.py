@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import shutil
-import subprocess
 import tempfile
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -99,84 +97,6 @@ class WorktreeBackend(ABC):
     @abstractmethod
     def release(self) -> None:
         """Release the working directory. Idempotent."""
-
-
-class TreehouseBackend(WorktreeBackend):
-    """Leased git worktree via the ``treehouse`` CLI.
-
-    Selected when ``treehouse`` is on PATH and *authoritative* lives
-    inside a git (or jj) repository.
-    """
-
-    def __init__(self) -> None:
-        self._lease_id: str | None = None
-        self._path: Path | None = None
-
-    def acquire(self, authoritative: Path) -> Path:
-        result = subprocess.run(
-            ["treehouse", "get", "--lease", "--json", "--no-fetch"],
-            cwd=authoritative,
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        info = json.loads(result.stdout)
-        self._lease_id = info["lease_id"]
-        self._path = Path(info["path"])
-        return self._path
-
-    def release(self) -> None:
-        if self._path is None or self._lease_id is None:
-            return
-        subprocess.run(
-            [
-                "treehouse", "return", "--force",
-                "--if-lease-id", self._lease_id,
-                str(self._path),
-            ],
-            capture_output=True,
-        )
-        self._lease_id = None
-        self._path = None
-
-
-class GitWorktreeBackend(WorktreeBackend):
-    """Detached-HEAD linked worktree via ``git worktree add``.
-
-    Selected when the authoritative tree is a git repo with at least
-    one commit but ``treehouse`` is not available.
-    """
-
-    def __init__(self) -> None:
-        self._worktree: Path | None = None
-        self._parent: Path | None = None
-        self._authoritative: Path | None = None
-
-    def acquire(self, authoritative: Path) -> Path:
-        self._authoritative = authoritative
-        self._parent = Path(tempfile.mkdtemp(prefix="brv-gwt-"))
-        self._worktree = self._parent / "tree"
-        subprocess.run(
-            ["git", "worktree", "add", "--detach", str(self._worktree)],
-            cwd=authoritative,
-            capture_output=True,
-            check=True,
-        )
-        return self._worktree
-
-    def release(self) -> None:
-        if self._worktree is None:
-            return
-        subprocess.run(
-            ["git", "worktree", "remove", "--force", str(self._worktree)],
-            cwd=self._authoritative,
-            capture_output=True,
-        )
-        if self._parent and self._parent.exists():
-            shutil.rmtree(self._parent, ignore_errors=True)
-        self._worktree = None
-        self._parent = None
-        self._authoritative = None
 
 
 class TempCopyBackend(WorktreeBackend):
