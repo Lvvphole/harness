@@ -13,9 +13,21 @@ VERSION_RE = re.compile(
 EXPORT_RE = re.compile(r"^\s*export\s+", re.MULTILINE)
 
 
+def is_unsafe_path(raw: str) -> bool:
+    if not isinstance(raw, str) or not raw.strip():
+        return True
+    if raw.startswith("/") or raw.startswith("\\") or Path(raw).is_absolute():
+        return True
+    parts = raw.replace("\\", "/").split("/")
+    return any(part == ".." for part in parts)
+
+
 def paths_in_scope(paths: list[str], allowed: list[str]) -> list[str]:
     out = []
     for raw in paths:
+        if is_unsafe_path(raw):
+            out.append(raw)
+            continue
         p = raw.replace("\\", "/").lstrip("./")
         ok = any(p == a or p.startswith(a.rstrip("/") + "/") or a == "." for a in allowed)
         if not ok:

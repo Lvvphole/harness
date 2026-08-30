@@ -9,15 +9,16 @@ bash scripts/eval-governance-tree.sh .
 ## Packaged skills
 
 ```bash
-bash plugins/bounded-runtime-harness/skills/bounded-runtime-harness/scripts/eval-skill.sh
-bash plugins/bounded-runtime-harness/skills/governance/scripts/eval-skill.sh
-python3 plugins/bounded-runtime-harness/skills/bounded-runtime-harness/assets/reference/tests/test_harness.py
+bash skills/bounded-runtime-harness/scripts/eval-skill.sh
+bash skills/governance/scripts/eval-skill.sh
+python3 skills/bounded-runtime-harness/assets/reference/tests/test_harness.py
 ```
 
-## Manifests
+## Manifests and package archive
 
 ```bash
-python3 -c "import json; json.load(open('plugins/bounded-runtime-harness/.codex-plugin/plugin.json')); json.load(open('.agents/plugins/marketplace.json'))"
+bash tests/codex/test-marketplace-manifest.sh
+bash tests/codex/test-package-codex-plugin.sh
 ```
 
 ## Coverage thresholds
@@ -27,7 +28,7 @@ This repository does not yet publish a coverage percentage. The pass bar is exit
 ## Pre-commit checks
 
 1. `bash scripts/eval-governance-tree.sh .`
-2. Parse `plugin.json` and `marketplace.json`.
+2. Parse `.codex-plugin/plugin.json` and `.agents/plugins/marketplace.json`.
 3. If plugin skill files changed, run both skill eval scripts and `test_harness.py`.
 
 ## Binding table
