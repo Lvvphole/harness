@@ -11,6 +11,7 @@ sys.path.insert(0, str(ROOT))
 
 from brv.controller import Controller
 from brv.envelope import content_sha256, hash_proposal
+from brv.evidence import make_record
 from brv.worktree import WorktreeTransaction
 
 
@@ -140,6 +141,29 @@ class HarnessTests(unittest.TestCase):
         payload = json.loads(files[0].read_text())
         self.assertIn("proposal_sha256", payload)
         self.assertIn("gates", payload)
+
+    def test_duplicate_evidence_write_is_rejected(self):
+        rec = make_record(
+            "run-001",
+            1,
+            "a" * 64,
+            "review-repair-v1",
+            {
+                "parse_compile": "PASS",
+                "scope": "PASS",
+                "secrets": "PASS",
+                "injection": "PASS",
+                "contract_preview": "PASS",
+                "retry_policy": "PASS",
+            },
+            "ACCEPT",
+            [],
+        )
+        rec.write(self.evidence)
+        original = (self.evidence / "run-001-1.json").read_text()
+        with self.assertRaises(FileExistsError):
+            rec.write(self.evidence)
+        self.assertEqual((self.evidence / "run-001-1.json").read_text(), original)
 
     def _candidate(self, source: str, path: str = "src/mod.py", **extra):
         body = {

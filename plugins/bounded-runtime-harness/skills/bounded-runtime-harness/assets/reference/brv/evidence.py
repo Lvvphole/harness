@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -12,7 +13,16 @@ class DecisionRecord:
     def write(self, directory: Path) -> Path:
         directory.mkdir(parents=True, exist_ok=True)
         path = directory / f"{self.payload['run_id']}-{self.payload['attempt']}.json"
-        path.write_text(json.dumps(self.payload, indent=2, sort_keys=True) + "\n")
+        body = json.dumps(self.payload, indent=2, sort_keys=True) + "\n"
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+        try:
+            fd = os.open(path, flags, 0o644)
+        except FileExistsError as exc:
+            raise FileExistsError(
+                f"evidence record already exists: {path.name}"
+            ) from exc
+        with os.fdopen(fd, "w") as fh:
+            fh.write(body)
         return path
 
 
