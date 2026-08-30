@@ -107,6 +107,8 @@ def evaluate_inference(
     if secret_hits:
         reasons.append("secrets: pattern or entropy hit")
 
+    # Trusted-channel separation lives in the host. SKILL.md forbids deciding
+    # injection by scanning proposal text.
     injection = "PASS"
 
     preds = contract["predicates"]
