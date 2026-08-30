@@ -15,14 +15,36 @@ from .predicates import (
     touches_multiple_files,
 )
 from .secrets import find_secret_hits
+from .worktree import PatchError, apply_unified_diff
 
 GateStatus = str  # PASS | FAIL | BLOCKED
+
+_SUFFIX_LANGUAGE = {
+    ".py": "python",
+    ".json": "json",
+}
 
 
 def _status(ok: bool, blocked: bool = False) -> GateStatus:
     if blocked:
         return "BLOCKED"
     return "PASS" if ok else "FAIL"
+
+
+def _language_for(path: str) -> str | None:
+    return _SUFFIX_LANGUAGE.get(Path(path).suffix)
+
+
+def _resulting_source(edit: dict[str, Any], worktree: Path) -> str | None:
+    if edit.get("action") == "delete":
+        return None
+    if "source" in edit:
+        return edit["source"]
+    existing = ""
+    target = worktree / edit["path"]
+    if target.exists():
+        existing = target.read_text()
+    return apply_unified_diff(existing, edit.get("unified_diff") or "")
 
 
 def evaluate_inference(
@@ -56,10 +78,20 @@ def evaluate_inference(
         reasons.append("parse_compile: contract_id mismatch")
         parse_compile = "FAIL"
 
-    if is_candidate(parsed) and parse_compile == "PASS":
+    if parse_compile == "PASS":
         try:
-            parse_source(parsed["language"], parsed["source"])
-        except LanguageError as exc:
+            if is_candidate(parsed):
+                parse_source(parsed["language"], parsed["source"])
+            else:
+                for edit in parsed.get("edits") or []:
+                    language = _language_for(edit.get("path") or "")
+                    if language is None:
+                        continue
+                    source = _resulting_source(edit, worktree)
+                    if source is None:
+                        continue
+                    parse_source(language, source)
+        except (LanguageError, PatchError) as exc:
             parse_compile = "FAIL"
             reasons.append(f"parse_compile: {exc}")
 
@@ -133,9 +165,7 @@ def authorize_tool(call: dict[str, Any], contract: dict[str, Any], state: dict[s
         cmd = args.get("cmd") or ""
         allowed = contract.get("allowed_commands") or []
         if allowed and cmd not in allowed:
-            prefix_ok = any(cmd.startswith(p) for p in allowed)
-            if not prefix_ok:
-                return False, "command not allow-listed"
+            return False, "command not allow-listed"
     if state.get("turns", 0) >= contract["budget"]["max_turns"]:
         return False, "turn budget exhausted"
     if state.get("files_touched", 0) > contract["budget"]["max_files"]:
