@@ -207,12 +207,33 @@ class HarnessTests(unittest.TestCase):
         self.assertEqual(rec["decision"], "HALT")
         self.assertFalse(rec["write_authorized"])
         self.assertEqual((self.tmp / "src" / "mod.py").read_text(), "x = 1\n")
+        payload = json.loads((self.evidence / "run-001-1.json").read_text())
+        self.assertEqual(payload["decision"], "HALT")
+        self.assertFalse(payload["write_authorized"])
+
+    def test_accepted_write_file_tool_is_authorized(self):
+        rec = self.ctl().ingest_proposal(
+            proposal(tool_calls=[{"name": "write_file", "args": {"path": "src/mod.py"}}])
+        )
+        self.assertEqual(rec["decision"], "ACCEPT")
+        self.assertTrue(rec["write_authorized"])
+        self.assertIn("x = 2", (self.tmp / "src" / "mod.py").read_text())
 
     def test_unified_diff_replaces_in_place(self):
         existing = "def a():\n    x = 1\n\ndef b():\n    return 2\n"
         diff = "--- a/src/mod.py\n+++ b/src/mod.py\n-    x = 1\n+    x = 2\n"
         out = apply_unified_diff(existing, diff)
         self.assertEqual(out, "def a():\n    x = 2\n\ndef b():\n    return 2\n")
+
+    def test_multi_hunk_diff_applies(self):
+        existing = "a = 1\nb = 2\nc = 3\n"
+        diff = (
+            "--- a/src/mod.py\n+++ b/src/mod.py\n"
+            "@@ -1,1 +1,1 @@\n-a = 1\n+a = 8\n"
+            "@@ -3,1 +3,1 @@\n-c = 3\n+c = 9\n"
+        )
+        out = apply_unified_diff(existing, diff)
+        self.assertEqual(out, "a = 8\nb = 2\nc = 9\n")
 
     def test_evidence_written(self):
         self.ctl().ingest_proposal(proposal())
