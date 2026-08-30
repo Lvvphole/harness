@@ -205,26 +205,7 @@ class TempCopyBackend(WorktreeBackend):
 # ---------------------------------------------------------------------------
 
 
-def _is_git_repo(path: Path) -> bool:
-    try:
-        r = subprocess.run(
-            ["git", "rev-parse", "--is-inside-work-tree"],
-            cwd=path, capture_output=True, timeout=5,
-        )
-        return r.returncode == 0
-    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
-        return False
-
-
-def _treehouse_available() -> bool:
-    return shutil.which("treehouse") is not None
-
-
 def select_backend(authoritative: Path) -> WorktreeBackend:
-    is_git = _is_git_repo(authoritative)
-    is_jj = authoritative.exists() and (authoritative / ".jj").is_dir()
-    if (is_git or is_jj) and _treehouse_available():
-        return TreehouseBackend()
     return TempCopyBackend()
 
 
