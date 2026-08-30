@@ -8,22 +8,10 @@ from .evidence import make_record
 from .gates import authorize_tool, decide, evaluate_inference
 from .hooks import HookRegistry
 from .state import Phase, RunState
-from .worktree import WorktreeTransaction
+from .worktree import PatchError, WorktreeTransaction
 
 
 class Controller:
-    """Transactional inference-gate controller.
-
-    MODEL OUTPUT
-      → PARSE CANDIDATE OR EDIT ENVELOPE
-      → LANGUAGE PARSER (AST / reject)
-      → APPLY SOURCE TO TEMPORARY WORKTREE
-      → RUN SIX GATES
-      → ACCEPT: write exact source bytes to real worktree
-      → REJECT: discard temporary state and retry
-      → HALT: preserve evidence and stop
-    """
-
     def __init__(
         self,
         authoritative: Path,
@@ -69,13 +57,7 @@ class Controller:
             decision = "HALT"
 
         if decision != "ACCEPT" or parsed is None:
-            return self._persist(
-                proposal_sha,
-                gates,
-                decision,
-                reasons,
-                parsed,
-            )
+            return self._persist(proposal_sha, gates, decision, reasons, parsed)
 
         self.hooks.emit(
             "before_model_output_accepted",
@@ -92,32 +74,35 @@ class Controller:
                     self.state.write_authorized = False
                     self.state.advance(Phase.BLOCKED)
                     return self._persist(
-                        proposal_sha,
-                        gates,
-                        "HALT",
-                        reasons + [reason],
-                        parsed,
+                        proposal_sha, gates, "HALT", reasons + [reason], parsed
                     )
 
         edits = as_edits(parsed, self.authoritative)
-        with WorktreeTransaction(self.authoritative) as txn:
-            txn.bind(proposal_sha, edits)
-            txn.apply_to_temp(edits)
-            if self.oracle_runner:
-                self.state.advance(Phase.RUN_ORACLE)
-                ok = self.oracle_runner(self.contract, txn.temp or self.authoritative)
-                if not ok:
-                    self.state.write_authorized = False
-                    self.state.advance(Phase.FAIL)
-                    return self._persist(
-                        proposal_sha,
-                        gates,
-                        "HALT",
-                        reasons + ["oracle failed"],
-                        parsed,
-                    )
-            self.hooks.emit("before_state_commit", sha256=proposal_sha)
-            txn.commit(proposal_sha)
+        try:
+            with WorktreeTransaction(self.authoritative) as txn:
+                txn.bind(proposal_sha, edits)
+                txn.apply_to_temp(edits)
+                if self.oracle_runner:
+                    self.state.advance(Phase.RUN_ORACLE)
+                    ok = self.oracle_runner(self.contract, txn.temp or self.authoritative)
+                    if not ok:
+                        self.state.write_authorized = False
+                        self.state.advance(Phase.FAIL)
+                        return self._persist(
+                            proposal_sha,
+                            gates,
+                            "HALT",
+                            reasons + ["oracle failed"],
+                            parsed,
+                        )
+                self.hooks.emit("before_state_commit", sha256=proposal_sha)
+                txn.commit(proposal_sha)
+        except (PatchError, OSError, RuntimeError) as exc:
+            self.state.write_authorized = False
+            self.state.advance(Phase.FAIL)
+            return self._persist(
+                proposal_sha, gates, "HALT", reasons + [str(exc)], parsed
+            )
         self.state.files_touched += len({e["path"] for e in edits})
         self.hooks.emit("after_mutation", paths=[e["path"] for e in edits])
         self.state.advance(Phase.COMMIT)

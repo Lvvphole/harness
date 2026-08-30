@@ -9,16 +9,15 @@ from .predicates import (
     count_new_files,
     grows_public_exports,
     introduces_version_bump,
-    is_unsafe_path,
     net_line_delta,
     paths_in_scope,
     proposed_paths,
     touches_multiple_files,
 )
 from .secrets import find_secret_hits
-from .worktree import PatchError, apply_unified_diff
+from .worktree import PatchError, apply_unified_diff, sandbox_path
 
-GateStatus = str  # PASS | FAIL | BLOCKED
+GateStatus = str
 
 _SUFFIX_LANGUAGE = {
     ".py": "python",
@@ -38,19 +37,13 @@ def _language_for(path: str) -> str | None:
 
 def _resulting_source(edit: dict[str, Any], worktree: Path) -> str | None:
     path = edit.get("path") or ""
-    if is_unsafe_path(path):
-        raise PatchError(f"unsafe path: {path}")
+    target = sandbox_path(worktree, path)
     if edit.get("action") == "delete":
         return None
     if "source" in edit:
         return edit["source"]
     existing = ""
-    target = worktree / path
-    try:
-        target.relative_to(worktree.resolve()) if target.is_absolute() else None
-    except ValueError as exc:
-        raise PatchError(f"path escapes sandbox: {path}") from exc
-    if target.exists():
+    if target.exists() and target.is_file():
         existing = target.read_text()
     return apply_unified_diff(existing, edit.get("unified_diff") or "")
 

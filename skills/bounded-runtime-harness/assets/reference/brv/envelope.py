@@ -5,6 +5,9 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .predicates import is_unsafe_path
+from .worktree import PatchError, sandbox_path
+
 SCHEMA_VERSION_EDIT = "1.0"
 SCHEMA_VERSION_CANDIDATE = "1.1"
 ALLOWED_INTENTS = {"edit", "tool", "noop"}
@@ -16,6 +19,14 @@ PATH_OK = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_./
 
 class EnvelopeError(ValueError):
     pass
+
+
+def _require_relpath(path: Any) -> str:
+    if not isinstance(path, str) or not path or any(c not in PATH_OK for c in path):
+        raise EnvelopeError("path contains illegal characters")
+    if is_unsafe_path(path):
+        raise EnvelopeError("path must be a relative sandbox path")
+    return path
 
 
 def canonical_bytes(payload: dict[str, Any]) -> bytes:
@@ -55,8 +66,9 @@ def parse_proposal(raw: str | bytes | dict[str, Any]) -> dict[str, Any]:
             raise EnvelopeError("edit must be an object")
         if edit.get("action") not in ALLOWED_ACTIONS:
             raise EnvelopeError("invalid edit action")
-        if not edit.get("path") or "unified_diff" not in edit:
+        if "path" not in edit or "unified_diff" not in edit:
             raise EnvelopeError("edit requires path and unified_diff")
+        _require_relpath(edit.get("path"))
     for call in data["tool_calls"]:
         if not isinstance(call, dict):
             raise EnvelopeError("tool_call must be an object")
@@ -64,6 +76,8 @@ def parse_proposal(raw: str | bytes | dict[str, Any]) -> dict[str, Any]:
             raise EnvelopeError("tool name not in enum")
         if not isinstance(call.get("args"), dict):
             raise EnvelopeError("tool args must be an object")
+        if "path" in call["args"]:
+            _require_relpath(call["args"]["path"])
     extra = set(data) - {"schema_version", "contract_id", "intent", "edits", "tool_calls", "notes"}
     if extra:
         raise EnvelopeError(f"unknown envelope fields: {sorted(extra)}")
@@ -81,11 +95,7 @@ def _parse_candidate(data: dict[str, Any]) -> dict[str, Any]:
             raise EnvelopeError(f"{key} required")
     if data["language"] not in ALLOWED_LANGUAGES:
         raise EnvelopeError("language must be python|json|text")
-    path = data["path"]
-    if not isinstance(path, str) or not path or any(c not in PATH_OK for c in path):
-        raise EnvelopeError("path contains illegal characters")
-    if ".." in path.split("/"):
-        raise EnvelopeError("path must not contain ..")
+    _require_relpath(data["path"])
     if not isinstance(data["source"], str):
         raise EnvelopeError("source must be a string")
     extra = set(data) - {
@@ -109,7 +119,10 @@ def as_edits(parsed: dict[str, Any], worktree: Path) -> list[dict[str, Any]]:
     if not is_candidate(parsed):
         return list(parsed.get("edits") or [])
     path = parsed["path"]
-    exists = (worktree / path).exists()
+    try:
+        exists = sandbox_path(worktree, path).exists()
+    except PatchError:
+        exists = False
     return [
         {
             "path": path,
