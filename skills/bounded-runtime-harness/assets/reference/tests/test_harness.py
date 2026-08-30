@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sys
 import tempfile
 import unittest
@@ -13,7 +14,13 @@ from brv.controller import Controller
 from brv.envelope import content_sha256, hash_proposal
 from brv.evidence import make_record
 from brv.gates import authorize_tool
-from brv.worktree import WorktreeTransaction, apply_unified_diff
+from brv.worktree import (
+    TempCopyBackend,
+    WorktreeBackend,
+    WorktreeTransaction,
+    apply_unified_diff,
+    select_backend,
+)
 
 
 def contract(**overrides):
@@ -304,6 +311,58 @@ class HarnessTests(unittest.TestCase):
         rec = self.ctl().ingest_proposal(self._candidate("not python at all !!!"))
         self.assertEqual(rec["gates"]["parse_compile"], "FAIL")
         self.assertFalse(rec["write_authorized"])
+
+
+# ---------------------------------------------------------------------------
+# Backend tests
+# ---------------------------------------------------------------------------
+
+class TempCopyBackendTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp(prefix="brv-test-tcp-"))
+        (self.tmp / "src").mkdir()
+        (self.tmp / "src" / "f.txt").write_text("hello\n")
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_acquire_copies_tree(self):
+        backend = TempCopyBackend()
+        wt = backend.acquire(self.tmp)
+        self.assertTrue((wt / "src" / "f.txt").exists())
+        self.assertEqual((wt / "src" / "f.txt").read_text(), "hello\n")
+        backend.release()
+
+    def test_release_removes_tree(self):
+        backend = TempCopyBackend()
+        wt = backend.acquire(self.tmp)
+        backend.release()
+        self.assertFalse(wt.exists())
+
+    def test_release_is_idempotent(self):
+        backend = TempCopyBackend()
+        backend.acquire(self.tmp)
+        backend.release()
+        backend.release()
+
+    def test_transaction_uses_temp_copy(self):
+        with WorktreeTransaction(self.tmp, backend=TempCopyBackend()) as txn:
+            self.assertIsNotNone(txn.temp)
+            self.assertTrue((txn.temp / "src" / "f.txt").exists())
+
+
+class BackendSelectionTests(unittest.TestCase):
+    def test_non_vcs_selects_temp_copy(self):
+        tmp = Path(tempfile.mkdtemp(prefix="brv-test-sel-"))
+        try:
+            backend = select_backend(tmp)
+            self.assertIsInstance(backend, TempCopyBackend)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_backend_abc_cannot_instantiate(self):
+        with self.assertRaises(TypeError):
+            WorktreeBackend()
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import shutil
 import tempfile
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
@@ -81,6 +82,58 @@ def apply_unified_diff(existing: str, diff: str) -> str:
     return "\n".join(old)
 
 
+# ---------------------------------------------------------------------------
+# Worktree backends
+# ---------------------------------------------------------------------------
+
+
+class WorktreeBackend(ABC):
+    """Acquires and releases an isolated working directory for one proposal."""
+
+    @abstractmethod
+    def acquire(self, authoritative: Path) -> Path:
+        """Return the path to an isolated working directory."""
+
+    @abstractmethod
+    def release(self) -> None:
+        """Release the working directory. Idempotent."""
+
+
+class TempCopyBackend(WorktreeBackend):
+    """Plain filesystem copy into a temp directory.
+
+    Fallback when the authoritative tree is not under version control.
+    """
+
+    def __init__(self) -> None:
+        self._temp: Path | None = None
+
+    def acquire(self, authoritative: Path) -> Path:
+        self._temp = Path(tempfile.mkdtemp(prefix="brv-"))
+        if authoritative.exists():
+            shutil.copytree(authoritative, self._temp, dirs_exist_ok=True)
+        return self._temp
+
+    def release(self) -> None:
+        if self._temp and self._temp.exists():
+            shutil.rmtree(self._temp, ignore_errors=True)
+        self._temp = None
+
+
+# ---------------------------------------------------------------------------
+# Backend selection
+# ---------------------------------------------------------------------------
+
+
+def select_backend(authoritative: Path) -> WorktreeBackend:
+    return TempCopyBackend()
+
+
+# ---------------------------------------------------------------------------
+# Transaction (controller contract unchanged)
+# ---------------------------------------------------------------------------
+
+
 class WorktreeTransaction:
     """Copy-on-write sandbox. Authoritative tree is untouched until commit.
 
@@ -88,16 +141,21 @@ class WorktreeTransaction:
     were hashed and gated, not a later mutation of the proposal.
     """
 
-    def __init__(self, authoritative: Path):
+    def __init__(
+        self,
+        authoritative: Path,
+        backend: WorktreeBackend | None = None,
+    ):
         self.authoritative = Path(authoritative)
         self.temp: Path | None = None
         self.bound_sha256: str | None = None
         self.bound_edits: list[dict[str, Any]] | None = None
+        self._backend: WorktreeBackend | None = backend
 
     def __enter__(self) -> "WorktreeTransaction":
-        self.temp = Path(tempfile.mkdtemp(prefix="brv-"))
-        if self.authoritative.exists():
-            shutil.copytree(self.authoritative, self.temp, dirs_exist_ok=True)
+        if self._backend is None:
+            self._backend = select_backend(self.authoritative)
+        self.temp = self._backend.acquire(self.authoritative)
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
@@ -142,8 +200,9 @@ class WorktreeTransaction:
         return written
 
     def discard(self) -> None:
-        if self.temp and self.temp.exists():
-            shutil.rmtree(self.temp, ignore_errors=True)
+        if self._backend is not None:
+            self._backend.release()
+            self._backend = None
         self.temp = None
         self.bound_sha256 = None
         self.bound_edits = None
