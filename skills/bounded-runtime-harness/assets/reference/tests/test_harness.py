@@ -12,7 +12,8 @@ sys.path.insert(0, str(ROOT))
 from brv.controller import Controller
 from brv.envelope import content_sha256, hash_proposal
 from brv.evidence import make_record
-from brv.worktree import WorktreeTransaction
+from brv.gates import authorize_tool
+from brv.worktree import WorktreeTransaction, apply_unified_diff
 
 
 def contract(**overrides):
@@ -90,6 +91,36 @@ class HarnessTests(unittest.TestCase):
         self.assertEqual((self.tmp / "src" / "mod.py").read_text(), before)
         self.assertFalse((self.tmp / "secrets" / "prod.env").exists())
 
+    def test_absolute_path_is_rejected(self):
+        rec = self.ctl().ingest_proposal(
+            proposal(
+                edits=[
+                    {
+                        "path": "/src/mod.py",
+                        "action": "modify",
+                        "unified_diff": "-x = 1\n+x = 9\n",
+                    }
+                ]
+            )
+        )
+        self.assertNotEqual(rec["decision"], "ACCEPT")
+        self.assertEqual((self.tmp / "src" / "mod.py").read_text(), "x = 1\n")
+
+    def test_parent_relative_path_is_rejected(self):
+        rec = self.ctl().ingest_proposal(
+            proposal(
+                edits=[
+                    {
+                        "path": "../src/mod.py",
+                        "action": "modify",
+                        "unified_diff": "-x = 1\n+x = 9\n",
+                    }
+                ]
+            )
+        )
+        self.assertNotEqual(rec["decision"], "ACCEPT")
+        self.assertEqual((self.tmp / "src" / "mod.py").read_text(), "x = 1\n")
+
     def test_new_file_blocked_by_review_repair(self):
         p = proposal(
             edits=[
@@ -106,8 +137,6 @@ class HarnessTests(unittest.TestCase):
         self.assertFalse((self.tmp / "src" / "new.py").exists())
 
     def test_tool_write_without_accept_is_denied(self):
-        from brv.gates import authorize_tool
-
         ok, reason = authorize_tool(
             {"name": "write_file", "args": {"path": "src/mod.py"}},
             contract(),
@@ -115,6 +144,15 @@ class HarnessTests(unittest.TestCase):
         )
         self.assertFalse(ok)
         self.assertIn("not authorized", reason)
+
+    def test_command_suffix_is_not_allow_listed(self):
+        ok, reason = authorize_tool(
+            {"name": "run_command", "args": {"cmd": "pytest -q; id"}},
+            contract(allowed_tools=["run_command"], allowed_commands=["pytest -q"]),
+            {"write_authorized": False, "turns": 0, "files_touched": 0},
+        )
+        self.assertFalse(ok)
+        self.assertIn("not allow-listed", reason)
 
     def test_commit_refuses_mismatched_hash(self):
         with WorktreeTransaction(self.tmp) as txn:
@@ -133,6 +171,48 @@ class HarnessTests(unittest.TestCase):
         )
         self.assertEqual(rec["gates"]["parse_compile"], "FAIL")
         self.assertNotEqual(rec["decision"], "ACCEPT")
+
+    def test_invalid_python_edit_does_not_write(self):
+        rec = self.ctl().ingest_proposal(
+            proposal(
+                edits=[
+                    {
+                        "path": "src/mod.py",
+                        "action": "modify",
+                        "unified_diff": "-x = 1\n+def broken(\n",
+                    }
+                ]
+            )
+        )
+        self.assertEqual(rec["decision"], "REJECT")
+        self.assertEqual(rec["gates"]["parse_compile"], "FAIL")
+        self.assertEqual((self.tmp / "src" / "mod.py").read_text(), "x = 1\n")
+
+    def test_disallowed_tool_call_does_not_commit(self):
+        rec = self.ctl().ingest_proposal(
+            proposal(tool_calls=[{"name": "run_command", "args": {"cmd": "pytest -q"}}])
+        )
+        self.assertEqual(rec["decision"], "HALT")
+        self.assertFalse(rec["write_authorized"])
+        self.assertEqual((self.tmp / "src" / "mod.py").read_text(), "x = 1\n")
+
+    def test_failed_oracle_does_not_commit(self):
+        ctl = Controller(
+            self.tmp,
+            contract(),
+            self.evidence,
+            oracle_runner=lambda _c, _p: False,
+        )
+        rec = ctl.ingest_proposal(proposal())
+        self.assertEqual(rec["decision"], "HALT")
+        self.assertFalse(rec["write_authorized"])
+        self.assertEqual((self.tmp / "src" / "mod.py").read_text(), "x = 1\n")
+
+    def test_unified_diff_replaces_in_place(self):
+        existing = "def a():\n    x = 1\n\ndef b():\n    return 2\n"
+        diff = "--- a/src/mod.py\n+++ b/src/mod.py\n-    x = 1\n+    x = 2\n"
+        out = apply_unified_diff(existing, diff)
+        self.assertEqual(out, "def a():\n    x = 2\n\ndef b():\n    return 2\n")
 
     def test_evidence_written(self):
         self.ctl().ingest_proposal(proposal())

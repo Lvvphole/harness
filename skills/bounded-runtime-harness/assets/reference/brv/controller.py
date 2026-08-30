@@ -104,33 +104,38 @@ class Controller:
             sha256=proposal_sha,
             state=self.state.snapshot(),
         )
-        edits = as_edits(parsed, self.authoritative)
-        with WorktreeTransaction(self.authoritative) as txn:
-            txn.bind(proposal_sha, edits)
-            txn.apply_to_temp(edits)
-            self.hooks.emit("before_state_commit", sha256=proposal_sha)
-            txn.commit(proposal_sha)
-        self.state.write_authorized = True
-        self.state.files_touched += len({e["path"] for e in edits})
-        self.hooks.emit("after_mutation", paths=[e["path"] for e in edits])
-        self.state.advance(Phase.COMMIT)
-
         if parsed.get("tool_calls"):
             for call in parsed["tool_calls"]:
                 auth_ok, reason = self.authorize_and_maybe_execute(call)
                 if not auth_ok:
+                    self.state.write_authorized = False
                     self.state.advance(Phase.BLOCKED)
                     record.payload["decision"] = "HALT"
                     record.payload["write_authorized"] = False
                     record.payload["reasons"].append(reason)
                     return record.payload
 
-        if self.oracle_runner:
-            self.state.advance(Phase.RUN_ORACLE)
-            ok = self.oracle_runner(self.contract, self.authoritative)
-            self.state.advance(Phase.PASS if ok else Phase.FAIL)
-        else:
-            self.state.advance(Phase.PASS)
+        edits = as_edits(parsed, self.authoritative)
+        with WorktreeTransaction(self.authoritative) as txn:
+            txn.bind(proposal_sha, edits)
+            txn.apply_to_temp(edits)
+            if self.oracle_runner:
+                self.state.advance(Phase.RUN_ORACLE)
+                ok = self.oracle_runner(self.contract, txn.temp or self.authoritative)
+                if not ok:
+                    self.state.write_authorized = False
+                    self.state.advance(Phase.FAIL)
+                    record.payload["decision"] = "HALT"
+                    record.payload["write_authorized"] = False
+                    record.payload["reasons"].append("oracle failed")
+                    return record.payload
+            self.hooks.emit("before_state_commit", sha256=proposal_sha)
+            txn.commit(proposal_sha)
+        self.state.write_authorized = True
+        self.state.files_touched += len({e["path"] for e in edits})
+        self.hooks.emit("after_mutation", paths=[e["path"] for e in edits])
+        self.state.advance(Phase.COMMIT)
+        self.state.advance(Phase.PASS)
         return record.payload
 
     def authorize_and_maybe_execute(self, call: dict[str, Any]) -> tuple[bool, str]:
