@@ -36,13 +36,12 @@ flowchart LR
 codex plugin marketplace add https://github.com/Lvvphole/harness
 ```
 
-### Install from a local archive
+### Package from source
 
-Build the archive, then install it with the Codex CLI.
+Run the package script to create a rootless archive for distribution.
 
 ```bash
 bash scripts/package-codex-plugin.sh --output /tmp/harness.zip
-codex plugin install /tmp/harness.zip
 ```
 
 ### Try it
