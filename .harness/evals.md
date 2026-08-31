@@ -14,6 +14,7 @@ Prefer deterministic oracles: shell assertions, JSON Schema parse, Python `ast.p
 | Bounded-runtime skill integrity | `bash skills/bounded-runtime-harness/scripts/eval-skill.sh` | exit 0 |
 | Governance skill integrity | `bash skills/governance/scripts/eval-skill.sh` | exit 0 |
 | Forbidden actions cannot execute | `python3 skills/bounded-runtime-harness/assets/reference/tests/test_harness.py` | exit 0 |
+| Codex hooks adapter | `python3 hooks/tests/test_hooks.py` | exit 0 |
 | Plugin manifest parse | `python3 -c "import json; json.load(open('.codex-plugin/plugin.json'))"` | exit 0 |
 | Marketplace parse | `python3 -c "import json; json.load(open('.agents/plugins/marketplace.json'))"` | exit 0 |
 | Marketplace source is repo root | marketplace `plugins[0].source.url` equals `./` | boolean true |

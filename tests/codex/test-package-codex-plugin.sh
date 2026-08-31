@@ -56,6 +56,7 @@ archive_paths="$(unzip -Z1 "$archive" | sed 's#/$##')"
 unexpected_pattern='(^plugins/|^\.agents/|^\.harness/|^\.governance/|^scripts/|^tests/|^AGENTS\.md$|^CLAUDE\.md$|^CONTEXT\.md$)'
 assert_not_matches "$archive_paths" "$unexpected_pattern" "archive excludes source-only paths"
 assert_contains "$archive_paths" ".codex-plugin/plugin.json" "archive includes Codex manifest"
+assert_contains "$archive_paths" "hooks/hooks.json" "archive includes hooks manifest"
 assert_contains "$archive_paths" "skills/governance/SKILL.md" "archive includes governance skill"
 assert_contains "$archive_paths" "skills/bounded-runtime-harness/SKILL.md" "archive includes harness skill"
 assert_contains "$archive_paths" "skills/governance/agents/openai.yaml" "archive includes governance metadata"

@@ -84,6 +84,7 @@ mkdir -p "$STAGE"
 
 git -C "$REPO_ROOT" -c tar.umask=0022 archive --format=tar "$REF" -- \
   .codex-plugin \
+  hooks \
   LICENSE \
   README.md \
   skills \

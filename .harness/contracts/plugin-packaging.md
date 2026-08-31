@@ -27,7 +27,7 @@ The repository root is a valid skills-only plugin that ChatGPT and Codex can loa
 
 - max files: 16
 - max turns: 20
-- allowed paths: `.codex-plugin/`, `skills/`, `.agents/plugins/`, `scripts/package-codex-plugin.sh`, `tests/codex/`, `README.md`
+- allowed paths: `.codex-plugin/`, `skills/`, `.agents/plugins/`, `scripts/package-codex-plugin.sh`, `tests/codex/`, `hooks/`, `README.md`
 
 ## Done when
 

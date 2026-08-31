@@ -156,6 +156,7 @@ The packaged archive contains only these paths:
 
 ```
 .codex-plugin/plugin.json
+hooks/
 skills/governance/
 skills/bounded-runtime-harness/
 README.md
@@ -182,6 +183,9 @@ bash skills/governance/scripts/eval-skill.sh
 
 # Forbidden-action and byte-identity tests (28 tests)
 python3 skills/bounded-runtime-harness/assets/reference/tests/test_harness.py
+
+# Codex hooks adapter (22 tests)
+python3 hooks/tests/test_hooks.py
 
 # Marketplace manifest parse
 bash tests/codex/test-marketplace-manifest.sh
