@@ -7,10 +7,12 @@ Package and maintain the Bounded Runtime Harness ChatGPT/Codex plugin.
 - Python 3 is required for reference tests.
 - Plugin root is the repository root.
 - Skills live in `skills/`.
+- Native Codex hooks live in `hooks/`.
 - For package-specific instructions, read the nearest AGENTS.md.
 
 ## Testing
 - `bash tests/codex/test-marketplace-manifest.sh`
+- `python3 tests/codex/test_hooks.py`
 - `bash tests/codex/test-package-codex-plugin.sh`
 - `bash scripts/eval-governance-tree.sh .`
 - `bash skills/bounded-runtime-harness/scripts/eval-skill.sh`
@@ -35,7 +37,8 @@ Package and maintain the Bounded Runtime Harness ChatGPT/Codex plugin.
 
 ## Architecture
 - Marketplace: `.agents/plugins/marketplace.json` source `url` `./`.
-- Manifest: `.codex-plugin/plugin.json` with `hooks` `{}`.
+- Manifest: `.codex-plugin/plugin.json`; native lifecycle hooks are not declared as a manifest `hooks` field.
+- Hooks: `hooks/hooks.json` wires native lifecycle events to `hooks/dispatch.py`.
 - Skills: `skills/{governance,bounded-runtime-harness}/`.
 - Package script: `scripts/package-codex-plugin.sh`.
 - Reference runtime stays under `skills/bounded-runtime-harness/assets/reference/`.

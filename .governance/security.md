@@ -52,8 +52,8 @@ Map: OWASP AST02, NIST Value Chain Integration.
 In-scope:
 
 - this clone
-- `plugins/bounded-runtime-harness/`
-- `.agents/plugins/`
+- `hooks/`, `skills/`, and `tests/codex/`
+- `.codex-plugin/` and `.agents/plugins/`
 - `.harness/`, `.governance/`, `scripts/`
 - root identity files listed in the inference loop
 
@@ -61,8 +61,11 @@ Off-limits:
 
 - other repositories unless the task names them
 - host secret stores
+- host paths reached through repository symlinks
 - production systems
 - decoder internals of ChatGPT UI
+
+Native hook decisions are guardrails, not authority expansion. They must fail closed on malformed contracts, out-of-scope resolved paths, and unbound result evidence.
 
 Map: OWASP AST06, NIST Information Security.
 

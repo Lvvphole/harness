@@ -24,9 +24,11 @@ Apply before each tool call and at the end of each turn.
    - Halt on repeated identical failure.
 
 5. **Re-eval after mutation**
-   - After any write under `plugins/`, run the matching `eval-skill.sh` or JSON parse.
+   - After any write under `plugins/` or `skills/`, run the matching `eval-skill.sh` or JSON parse.
    - After any write under `.harness/` or `.governance/`, run `bash scripts/eval-governance-tree.sh .`.
    - After any write to Python reference code or tests, run `test_harness.py`.
+   - After any write under `hooks/` or to `tests/codex/test_hooks.py`, run `python3 tests/codex/test_hooks.py`.
+   - After hook packaging, manifest, package-script, or package-test changes, run `bash tests/codex/test-marketplace-manifest.sh` and `bash tests/codex/test-package-codex-plugin.sh`.
    - Do not batch all mutations and evaluate once if a mid-loop failure should have stopped the work.
 
 6. **No silent tool failure**
