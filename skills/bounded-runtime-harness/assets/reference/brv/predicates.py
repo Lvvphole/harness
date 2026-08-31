@@ -11,6 +11,7 @@ VERSION_RE = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 EXPORT_RE = re.compile(r"^\s*export\s+", re.MULTILINE)
+PY_PUBLIC_RE = re.compile(r"^(?:async\s+def|def|class)\s+([A-Za-z_]\w*)\b")
 
 
 def is_unsafe_path(raw: str) -> bool:
@@ -85,6 +86,15 @@ def _python_public_names(source: str) -> set[str]:
     return names
 
 
+def _python_public_diff_names(lines: list[str]) -> set[str]:
+    names: set[str] = set()
+    for line in lines:
+        match = PY_PUBLIC_RE.match(line)
+        if match and not match.group(1).startswith("_"):
+            names.add(match.group(1))
+    return names
+
+
 def grows_public_exports(proposal: dict[str, Any], worktree: Path | None = None) -> bool:
     if _is_candidate(proposal):
         new = proposal.get("source") or ""
@@ -102,6 +112,9 @@ def grows_public_exports(proposal: dict[str, Any], worktree: Path | None = None)
         diff = edit.get("unified_diff") or ""
         added = [ln[1:] for ln in diff.splitlines() if ln.startswith("+") and not ln.startswith("+++")]
         removed = [ln[1:] for ln in diff.splitlines() if ln.startswith("-") and not ln.startswith("---")]
+        if str(edit.get("path", "")).endswith(".py"):
+            if _python_public_diff_names(added) - _python_public_diff_names(removed):
+                return True
         added_ex = sum(1 for ln in added if EXPORT_RE.search(ln))
         removed_ex = sum(1 for ln in removed if EXPORT_RE.search(ln))
         if added_ex > removed_ex:

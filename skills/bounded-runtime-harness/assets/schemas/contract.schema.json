@@ -37,6 +37,7 @@
       "type": "array",
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["id", "cmd", "expect_exit"],
         "properties": {
           "id": { "type": "string" },
@@ -47,6 +48,7 @@
     },
     "budget": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["max_files", "max_turns", "max_retries", "timeout_s"],
       "properties": {
         "max_files": { "type": "integer", "minimum": 0 },
@@ -57,6 +59,7 @@
     },
     "predicates": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
         "forbid_new_files",
         "forbid_version_bump",

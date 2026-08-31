@@ -1,7 +1,7 @@
 {
   "name": "bounded-runtime-harness",
   "version": "1.2.0",
-  "description": "Skills-only plugin that packages evaluation-first governance and a bounded runtime harness for ChatGPT and Codex.",
+  "description": "Plugin that packages evaluation-first governance, a bounded runtime harness, and native Codex hook guardrails.",
   "author": {
     "name": "Emory Harris",
     "email": "lvvphole@gmail.com",
@@ -19,11 +19,10 @@
     "chatgpt"
   ],
   "skills": "./skills/",
-  "hooks": {},
   "interface": {
     "displayName": "Bounded Runtime Harness",
-    "shortDescription": "Evaluation-first governance and fail-closed runtime skills",
-    "longDescription": "Install this plugin to load the governance skill and the bounded-runtime-harness skill. Governance writes evaluation-first markdown contracts. The harness skill compiles those contracts into proposal envelopes, inference gates, runtime gates, and forbidden-action tests. Layer 0 decoder constraints are best-effort on ChatGPT UI.",
+    "shortDescription": "Evaluation-first governance and fail-closed runtime guardrails",
+    "longDescription": "Install this plugin to load governance skills, the bounded-runtime-harness skill, and native Codex hook guardrails. Hooks fail closed on invalid contracts, out-of-scope tool paths, and unbound result evidence. They do not replace host permissions, sandboxing, or independent verification.",
     "developerName": "Emory Harris",
     "category": "Developer Tools",
     "capabilities": ["Read", "Write"],

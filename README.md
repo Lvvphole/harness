@@ -5,9 +5,9 @@
 ![Python 3](https://img.shields.io/badge/python-3-blue)
 ![Skills](https://img.shields.io/badge/skills-2-green)
 
-A skills-only ChatGPT and Codex plugin that enforces governance contracts at inference time.
-It gives coding agents a structured governance framework and a fail-closed runtime enforcement layer.
-No model output reaches the authoritative worktree unless all gates pass.
+A ChatGPT and Codex plugin that packages governance skills and native Codex hook guardrails.
+It gives coding agents a structured governance framework and fail-closed checks for native tool requests.
+Hooks reduce risk but do not replace host permissions, sandboxing, or independent verification.
 
 ## Architecture
 
@@ -133,7 +133,7 @@ flowchart TB
     L2[Layer 2: Runtime Gate]
     L0 -->|Constrains token sampling| L1
     L1 -->|Evaluates completed proposal| L2
-    L2 -->|Authorizes every tool request| OUT[PASS / FAIL / BLOCKED]
+    L2 -->|Checks tool requests| OUT[PASS / FAIL / BLOCKED]
 ```
 
 **Layer 0: Decoder constraint.**
@@ -147,8 +147,8 @@ Six deterministic gates run against the proposal.
 A failure at any gate causes a REJECT or HALT decision.
 
 **Layer 2: Runtime gate.**
-This layer authorizes every tool request through pre-execution hooks.
-It enforces allow-lists, path restrictions, budget limits, and stop conditions.
+This layer checks native tool requests through pre-execution hooks.
+It enforces allow-lists, resolved path restrictions, budget limits, and stop conditions.
 
 ## What Ships
 
@@ -156,6 +156,7 @@ The packaged archive contains only these paths:
 
 ```
 .codex-plugin/plugin.json
+hooks/
 skills/governance/
 skills/bounded-runtime-harness/
 README.md
@@ -183,10 +184,13 @@ bash skills/governance/scripts/eval-skill.sh
 # Forbidden-action and byte-identity tests (28 tests)
 python3 skills/bounded-runtime-harness/assets/reference/tests/test_harness.py
 
+# Native Codex hook acceptance (11 tests)
+python3 tests/codex/test_hooks.py
+
 # Marketplace manifest parse
 bash tests/codex/test-marketplace-manifest.sh
 
-# Plugin packaging (12 assertions)
+# Plugin packaging (14 assertions)
 bash tests/codex/test-package-codex-plugin.sh
 ```
 
