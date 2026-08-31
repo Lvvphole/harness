@@ -38,8 +38,11 @@ codex plugin marketplace add https://github.com/Lvvphole/harness
 
 ### Install from a local archive
 
+Build the archive, then install it with the Codex CLI.
+
 ```bash
 bash scripts/package-codex-plugin.sh --output /tmp/harness.zip
+codex plugin install /tmp/harness.zip
 ```
 
 ### Try it
