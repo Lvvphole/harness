@@ -46,7 +46,7 @@ class HookTests(unittest.TestCase):
 
     def write_contract(self, value: dict[str, object]) -> None:
         target = self.work / ".harness" / "runtime" / "active-contract.json"
-        target.parent.mkdir(parents=True)
+        target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(json.dumps(value), encoding="utf-8")
 
     def invoke(self, event: str, **fields: object) -> subprocess.CompletedProcess[str]:
@@ -98,6 +98,24 @@ class HookTests(unittest.TestCase):
         self.assertEqual(output["permissionDecision"], "deny")
         self.assertIn("active contract", output["permissionDecisionReason"])
 
+    def test_incomplete_contract_never_authorizes_a_tool(self) -> None:
+        cases = {
+            "missing task type": {key: value for key, value in contract().items() if key != "task_type"},
+            "missing predicates": {key: value for key, value in contract().items() if key != "predicates"},
+            "invalid tool": contract(allowed_tools=["write_file", "unbounded_shell"]),
+            "extra field": contract(unrecognized=True),
+        }
+        for label, value in cases.items():
+            with self.subTest(label=label):
+                self.write_contract(value)
+                result = self.invoke(
+                    "PreToolUse", tool_name="apply_patch", tool_use_id=f"schema-{label}",
+                    tool_input={"command": "*** Begin Patch\n*** Add File: src/a.py\n+x = 1\n*** End Patch"},
+                )
+                output = self.output(result)["hookSpecificOutput"]
+                self.assertEqual(output["permissionDecision"], "deny")
+                self.assertIn("active contract", output["permissionDecisionReason"])
+
     def test_empty_command_allowlist_is_fail_closed(self) -> None:
         self.write_contract(contract(allowed_commands=[]))
         result = self.invoke(
@@ -125,6 +143,48 @@ class HookTests(unittest.TestCase):
         output = self.output(result)["hookSpecificOutput"]
         self.assertEqual(output["permissionDecision"], "deny")
         self.assertIn("out of scope", output["permissionDecisionReason"])
+
+    def test_review_repair_predicates_are_enforced(self) -> None:
+        source = self.work / "src" / "value.js"
+        source.parent.mkdir()
+        source.write_text("export const value = 1;\n", encoding="utf-8")
+        cases = {
+            "forbid_new_files": "*** Begin Patch\n*** Add File: src/new.py\n+x = 1\n*** End Patch",
+            "one_file_scope": "*** Begin Patch\n*** Update File: src/value.js\n@@\n-export const value = 1;\n+export const value = 2;\n*** Add File: src/new.py\n+x = 1\n*** End Patch",
+            "forbid_version_bump": "*** Begin Patch\n*** Update File: src/value.js\n@@\n-export const value = 1;\n+export const version = '2.0';\n*** End Patch",
+            "forbid_public_export_growth": "*** Begin Patch\n*** Update File: src/value.js\n@@\n export const value = 1;\n+export const added = 2;\n*** End Patch",
+            "net_non_positive_lines": "*** Begin Patch\n*** Update File: src/value.js\n@@\n export const value = 1;\n+const first = 1;\n+const second = 2;\n*** End Patch",
+        }
+        for predicate, command in cases.items():
+            with self.subTest(predicate=predicate):
+                predicates = {key: False for key in contract()["predicates"]}
+                predicates[predicate] = True
+                self.write_contract(contract(predicates=predicates))
+                result = self.invoke(
+                    "PreToolUse", tool_name="apply_patch", tool_use_id=f"predicate-{predicate}",
+                    tool_input={"command": command},
+                )
+                output = self.output(result)["hookSpecificOutput"]
+                self.assertEqual(output["permissionDecision"], "deny")
+                self.assertIn(predicate, output["permissionDecisionReason"])
+
+    def test_read_tools_cannot_escape_allowed_paths(self) -> None:
+        self.write_contract(contract())
+        cases = {
+            "Read": {"path": "/etc/passwd"},
+            "read_file": {"path": "README.md"},
+            "Grep": {"path": "tests", "pattern": "secret"},
+            "Glob": {"path": "..", "pattern": "**/*"},
+        }
+        for tool_name, tool_input in cases.items():
+            with self.subTest(tool_name=tool_name):
+                result = self.invoke(
+                    "PreToolUse", tool_name=tool_name, tool_use_id=f"read-{tool_name}",
+                    tool_input=tool_input,
+                )
+                output = self.output(result)["hookSpecificOutput"]
+                self.assertEqual(output["permissionDecision"], "deny")
+                self.assertIn("out of scope", output["permissionDecisionReason"])
 
     def test_permitted_patch_records_exact_proposal(self) -> None:
         self.write_contract(contract())
@@ -171,6 +231,43 @@ class HookTests(unittest.TestCase):
         self.assertEqual(record["tool_use_id"], "tool-6")
         self.assertEqual(record["tool_response"]["exit_code"], 0)
         self.assertNotIn("accepted", record)
+
+    def test_result_evidence_uses_and_verifies_the_proposal_contract(self) -> None:
+        first = contract(contract_id="contract-1")
+        self.write_contract(first)
+        tool_input = {"command": "python3 -m unittest"}
+        pre = self.invoke(
+            "PreToolUse", tool_name="Bash", tool_use_id="bound-result",
+            tool_input=tool_input,
+        )
+        self.assertEqual(self.output(pre), {})
+        self.write_contract(contract(contract_id="contract-2"))
+        post = self.invoke(
+            "PostToolUse", tool_name="Bash", tool_use_id="bound-result",
+            tool_input=tool_input, tool_response={"exit_code": 0},
+        )
+        self.assertEqual(self.output(post), {})
+        path = self.data / "runs" / "session-1" / "bound-result.result.json"
+        record = json.loads(path.read_text())
+        self.assertEqual(record["contract_id"], "contract-1")
+        self.assertEqual(record["provenance_verdict"], "PASS")
+
+    def test_result_input_mismatch_blocks_and_records_failure(self) -> None:
+        self.write_contract(contract())
+        pre = self.invoke(
+            "PreToolUse", tool_name="Bash", tool_use_id="mismatched-result",
+            tool_input={"command": "python3 -m unittest"},
+        )
+        self.assertEqual(self.output(pre), {})
+        post = self.invoke(
+            "PostToolUse", tool_name="Bash", tool_use_id="mismatched-result",
+            tool_input={"command": "different command"}, tool_response={"exit_code": 0},
+        )
+        output = self.output(post)
+        self.assertEqual(output["decision"], "block")
+        path = self.data / "runs" / "session-1" / "mismatched-result.result.json"
+        record = json.loads(path.read_text())
+        self.assertEqual(record["provenance_verdict"], "FAIL")
 
 
 if __name__ == "__main__":
