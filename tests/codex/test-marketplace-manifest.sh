@@ -36,7 +36,9 @@ manifest_path = repo_root / ".codex-plugin" / "plugin.json"
 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 assert_equal(manifest.get("name"), plugin.get("name"), "manifest name")
 assert_equal(manifest.get("skills"), "./skills/", "skills path")
-assert_equal(manifest.get("hooks"), {}, "hooks must be empty object")
+assert "hooks" not in manifest, (
+    "omit an empty hooks override; Codex discovers hooks/hooks.json by default"
+)
 
 skills_root = repo_root / "skills"
 skill_dirs = sorted(p.name for p in skills_root.iterdir() if p.is_dir())

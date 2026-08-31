@@ -19,7 +19,6 @@
     "chatgpt"
   ],
   "skills": "./skills/",
-  "hooks": {},
   "interface": {
     "displayName": "Bounded Runtime Harness",
     "shortDescription": "Evaluation-first governance and fail-closed runtime skills",
