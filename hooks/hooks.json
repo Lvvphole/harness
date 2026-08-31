@@ -1,0 +1,32 @@
+{
+  "hooks": [
+    {
+      "event": "SessionStart",
+      "command": "python3 hooks/dispatch.py SessionStart"
+    },
+    {
+      "event": "UserPromptSubmit",
+      "command": "python3 hooks/dispatch.py UserPromptSubmit"
+    },
+    {
+      "event": "PreToolUse",
+      "command": "python3 hooks/dispatch.py PreToolUse"
+    },
+    {
+      "event": "PermissionRequest",
+      "command": "python3 hooks/dispatch.py PermissionRequest"
+    },
+    {
+      "event": "PostToolUse",
+      "command": "python3 hooks/dispatch.py PostToolUse"
+    },
+    {
+      "event": "Stop",
+      "command": "python3 hooks/dispatch.py Stop"
+    },
+    {
+      "event": "SessionEnd",
+      "command": "python3 hooks/dispatch.py SessionEnd"
+    }
+  ]
+}
