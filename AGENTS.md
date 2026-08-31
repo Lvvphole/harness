@@ -35,7 +35,7 @@ Package and maintain the Bounded Runtime Harness ChatGPT/Codex plugin.
 
 ## Architecture
 - Marketplace: `.agents/plugins/marketplace.json` source `url` `./`.
-- Manifest: `.codex-plugin/plugin.json` with `hooks` `{}`.
+- Manifest: `.codex-plugin/plugin.json`.
 - Skills: `skills/{governance,bounded-runtime-harness}/`.
 - Package script: `scripts/package-codex-plugin.sh`.
 - Reference runtime stays under `skills/bounded-runtime-harness/assets/reference/`.
