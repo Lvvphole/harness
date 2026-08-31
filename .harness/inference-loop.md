@@ -11,7 +11,7 @@ Apply after every model generation and before any write or commit.
    - Reject invalid output. Do not silently patch it in place.
 
 2. **Scope**
-   - Allowed roots: `plugins/bounded-runtime-harness/`, `.agents/plugins/`, `.harness/`, `.governance/`, `scripts/`, and root identity files (`README.md`, `AGENTS.md`, `CLAUDE.md`, `CONTEXT.md`, `LICENSE`, `.gitignore`).
+   - Allowed roots: `hooks/`, `plugins/bounded-runtime-harness/`, `.agents/plugins/`, `.harness/`, `.governance/`, `scripts/`, and root identity files (`README.md`, `AGENTS.md`, `CLAUDE.md`, `CONTEXT.md`, `LICENSE`, `.gitignore`).
    - Reject paths outside those roots.
 
 3. **Secrets**
