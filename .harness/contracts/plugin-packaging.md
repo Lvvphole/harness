@@ -2,7 +2,7 @@
 
 ## Hypothesis
 
-The repository root is a valid skills-only plugin that ChatGPT and Codex can load from the repo marketplace.
+The repository root is a valid skills-and-hooks plugin that ChatGPT and Codex can load from the repo marketplace.
 
 ## Oracles
 
@@ -16,6 +16,8 @@ The repository root is a valid skills-only plugin that ChatGPT and Codex can loa
 - expect: exit 0
 - cmd: `bash skills/bounded-runtime-harness/scripts/eval-skill.sh`
 - expect: exit 0
+- cmd: `python3 tests/codex/test_hooks.py`
+- expect: exit 0
 
 ## Invariants
 
@@ -25,9 +27,9 @@ The repository root is a valid skills-only plugin that ChatGPT and Codex can loa
 
 ## Budget
 
-- max files: 16
+- max files: 20
 - max turns: 20
-- allowed paths: `.codex-plugin/`, `skills/`, `.agents/plugins/`, `scripts/package-codex-plugin.sh`, `tests/codex/`, `README.md`
+- allowed paths: `.codex-plugin/`, `hooks/`, `skills/`, `.agents/plugins/`, `scripts/package-codex-plugin.sh`, `tests/codex/`, `README.md`
 
 ## Done when
 

@@ -60,6 +60,8 @@ assert_contains "$archive_paths" "skills/governance/SKILL.md" "archive includes 
 assert_contains "$archive_paths" "skills/bounded-runtime-harness/SKILL.md" "archive includes harness skill"
 assert_contains "$archive_paths" "skills/governance/agents/openai.yaml" "archive includes governance metadata"
 assert_contains "$archive_paths" "skills/bounded-runtime-harness/agents/openai.yaml" "archive includes harness metadata"
+assert_contains "$archive_paths" "hooks/hooks.json" "archive includes hook configuration"
+assert_contains "$archive_paths" "hooks/dispatch.py" "archive includes hook dispatcher"
 assert_contains "$archive_paths" "README.md" "archive includes README"
 assert_contains "$archive_paths" "LICENSE" "archive includes LICENSE"
 

@@ -10,7 +10,7 @@ Read this file to decide which context to load. Each section defines a task type
 
 - Harness: `.harness/evals.md`, `.harness/inference-loop.md`, `.harness/runtime-loop.md`, `.harness/contracts/feature-development.md`
 - Policy: `.governance/testing.md`, `.governance/security.md`, `.governance/style.md`
-- Working: `skills/`, `.codex-plugin/`, `.agents/plugins/`, `.harness/`, `.governance/`, `scripts/`, `tests/codex/`
+- Working: `hooks/`, `skills/`, `.codex-plugin/`, `.agents/plugins/`, `.harness/`, `.governance/`, `scripts/`, `tests/codex/`
 
 ### Process
 
@@ -165,18 +165,19 @@ Satisfy `.harness/contracts/documentation.md`. Do not accept a proxy.
 
 - Harness: `.harness/evals.md`, `.harness/inference-loop.md`, `.harness/runtime-loop.md`, `.harness/contracts/plugin-packaging.md`
 - Policy: `.governance/testing.md`, `.governance/security.md`
-- Working: `.codex-plugin/`, `skills/`, `.agents/plugins/`, `scripts/package-codex-plugin.sh`, `tests/codex/`
+- Working: `.codex-plugin/`, `hooks/`, `skills/`, `.agents/plugins/`, `scripts/package-codex-plugin.sh`, `tests/codex/`
 
 ### Process
 
 1. Confirm the oracle.
 2. Keep `.codex-plugin/plugin.json` as the only file in `.codex-plugin/`.
 3. Keep skill folder names aligned with SKILL.md `name` fields.
-4. Parse both JSON manifests after every edit.
+4. Validate `hooks/hooks.json` and its native event wire contract.
+5. Parse both JSON manifests after every edit.
 
 ### Outputs
 
-A loadable skills-only plugin and a valid repo marketplace entry.
+A loadable skills-and-hooks plugin and a valid repo marketplace entry.
 
 ### Verification
 
