@@ -12,7 +12,6 @@ from pathlib import Path
 
 marketplace_path = Path(sys.argv[1])
 repo_root = Path(sys.argv[2])
-
 marketplace = json.loads(marketplace_path.read_text(encoding="utf-8"))
 
 def assert_equal(actual, expected, label):
@@ -31,13 +30,11 @@ assert_equal(
     {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
     "plugin policy",
 )
-
 manifest_path = repo_root / ".codex-plugin" / "plugin.json"
 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 assert_equal(manifest.get("name"), plugin.get("name"), "manifest name")
 assert_equal(manifest.get("skills"), "./skills/", "skills path")
-assert_equal(manifest.get("hooks"), {}, "hooks must be empty object")
-
+assert_equal("hooks" in manifest, False, "default hooks path must not be overridden")
 skills_root = repo_root / "skills"
 skill_dirs = sorted(p.name for p in skills_root.iterdir() if p.is_dir())
 assert_equal(skill_dirs, ["bounded-runtime-harness", "governance"], "skill directories")
@@ -48,6 +45,5 @@ for name in skill_dirs:
         raise AssertionError(f"missing {skill_md}")
     if not meta.is_file():
         raise AssertionError(f"missing {meta}")
-
 print("Codex marketplace manifest looks good")
 PY
