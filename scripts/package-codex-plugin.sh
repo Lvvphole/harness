@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Package the harness Codex plugin as a rootless archive.
-# Ships only .codex-plugin/, skills/, README.md, and LICENSE.
+# Ships only .codex-plugin/, hooks/, skills/, README.md, and LICENSE.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -86,10 +86,13 @@ git -C "$REPO_ROOT" -c tar.umask=0022 archive --format=tar "$REF" -- \
   .codex-plugin \
   LICENSE \
   README.md \
+  hooks \
   skills \
   | tar -xpf - -C "$STAGE"
 
 [[ -f "$STAGE/.codex-plugin/plugin.json" ]] || die "missing .codex-plugin/plugin.json"
+[[ -f "$STAGE/hooks/hooks.json" ]] || die "missing hooks/hooks.json"
+[[ -f "$STAGE/hooks/dispatch.py" ]] || die "missing hooks/dispatch.py"
 [[ -d "$STAGE/skills" ]] || die "missing skills/"
 
 VERSION="$(jq -r '.version // empty' "$STAGE/.codex-plugin/plugin.json")"

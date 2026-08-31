@@ -1,0 +1,12 @@
+{
+  "description": "Fail-closed runtime gates and provenance evidence for the harness plugin.",
+  "hooks": {
+    "SessionStart": [{"hooks": [{"type": "command", "command": "python3 \"$PLUGIN_ROOT/hooks/dispatch.py\" SessionStart", "commandWindows": "py -3 \"%PLUGIN_ROOT%\\hooks\\dispatch.py\" SessionStart", "timeout": 5}]}],
+    "UserPromptSubmit": [{"hooks": [{"type": "command", "command": "python3 \"$PLUGIN_ROOT/hooks/dispatch.py\" UserPromptSubmit", "commandWindows": "py -3 \"%PLUGIN_ROOT%\\hooks\\dispatch.py\" UserPromptSubmit", "timeout": 5}]}],
+    "PreToolUse": [{"matcher": "*", "hooks": [{"type": "command", "command": "python3 \"$PLUGIN_ROOT/hooks/dispatch.py\" PreToolUse", "commandWindows": "py -3 \"%PLUGIN_ROOT%\\hooks\\dispatch.py\" PreToolUse", "timeout": 10, "statusMessage": "Checking runtime contract"}]}],
+    "PermissionRequest": [{"matcher": "*", "hooks": [{"type": "command", "command": "python3 \"$PLUGIN_ROOT/hooks/dispatch.py\" PermissionRequest", "commandWindows": "py -3 \"%PLUGIN_ROOT%\\hooks\\dispatch.py\" PermissionRequest", "timeout": 10}]}],
+    "PostToolUse": [{"matcher": "*", "hooks": [{"type": "command", "command": "python3 \"$PLUGIN_ROOT/hooks/dispatch.py\" PostToolUse", "commandWindows": "py -3 \"%PLUGIN_ROOT%\\hooks\\dispatch.py\" PostToolUse", "timeout": 10}]}],
+    "Stop": [{"hooks": [{"type": "command", "command": "python3 \"$PLUGIN_ROOT/hooks/dispatch.py\" Stop", "commandWindows": "py -3 \"%PLUGIN_ROOT%\\hooks\\dispatch.py\" Stop", "timeout": 5}]}],
+    "SessionEnd": [{"hooks": [{"type": "command", "command": "python3 \"$PLUGIN_ROOT/hooks/dispatch.py\" SessionEnd", "commandWindows": "py -3 \"%PLUGIN_ROOT%\\hooks\\dispatch.py\" SessionEnd", "timeout": 3}]}]
+  }
+}

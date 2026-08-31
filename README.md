@@ -5,9 +5,9 @@
 ![Python 3](https://img.shields.io/badge/python-3-blue)
 ![Skills](https://img.shields.io/badge/skills-2-green)
 
-A skills-only ChatGPT and Codex plugin that enforces governance contracts at inference time.
-It gives coding agents a structured governance framework and a fail-closed runtime enforcement layer.
-No model output reaches the authoritative worktree unless all gates pass.
+A ChatGPT and Codex plugin that packages governance skills and native Codex hook guardrails.
+It gives coding agents a structured governance framework and fail-closed checks for native tool requests.
+Hooks reduce risk but do not replace host permissions, sandboxing, or independent verification.
 
 ## Architecture
 
@@ -156,6 +156,7 @@ The packaged archive contains only these paths:
 
 ```
 .codex-plugin/plugin.json
+hooks/
 skills/governance/
 skills/bounded-runtime-harness/
 README.md
