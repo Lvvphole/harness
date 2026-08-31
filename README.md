@@ -5,9 +5,9 @@
 ![Python 3](https://img.shields.io/badge/python-3-blue)
 ![Skills](https://img.shields.io/badge/skills-2-green)
 
-A skills-only ChatGPT and Codex plugin that enforces governance contracts at inference time.
-It gives coding agents a structured governance framework and a fail-closed runtime enforcement layer.
-No model output reaches the authoritative worktree unless all gates pass.
+A ChatGPT and Codex plugin that packages governance skills plus native Codex lifecycle hooks.
+It gives coding agents a structured governance framework and a fail-closed tool-call guardrail.
+Codex hooks cover supported local tool paths; hosted and specialized paths may bypass hooks.
 
 ## Architecture
 
@@ -35,6 +35,9 @@ flowchart LR
 ```bash
 codex plugin marketplace add https://github.com/Lvvphole/harness
 ```
+
+Open `/hooks` in Codex and review the bundled hook definition. Codex skips
+non-managed plugin hooks until their current hash is trusted.
 
 ### Package from source
 
@@ -149,6 +152,12 @@ A failure at any gate causes a REJECT or HALT decision.
 **Layer 2: Runtime gate.**
 This layer authorizes every tool request through pre-execution hooks.
 It enforces allow-lists, path restrictions, budget limits, and stop conditions.
+Codex documents hooks as a guardrail rather than a complete enforcement boundary.
+
+The native adapter reads the active compiled contract from
+`<repo>/.harness/runtime/active-contract.json`. Missing or invalid contracts deny
+mutation. Hook state and immutable proposal/result evidence are stored under the
+host-provided `PLUGIN_DATA` directory, never in the governed repository.
 
 ## What Ships
 
@@ -156,6 +165,8 @@ The packaged archive contains only these paths:
 
 ```
 .codex-plugin/plugin.json
+hooks/hooks.json
+hooks/dispatch.py
 skills/governance/
 skills/bounded-runtime-harness/
 README.md
