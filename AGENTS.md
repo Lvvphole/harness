@@ -12,6 +12,7 @@ Package and maintain the Bounded Runtime Harness ChatGPT/Codex plugin.
 ## Testing
 - `bash tests/codex/test-marketplace-manifest.sh`
 - `bash tests/codex/test-package-codex-plugin.sh`
+- `python3 tests/codex/test-native-hooks-acceptance.py`
 - `bash scripts/eval-governance-tree.sh .`
 - `bash skills/bounded-runtime-harness/scripts/eval-skill.sh`
 - `bash skills/governance/scripts/eval-skill.sh`
@@ -35,7 +36,10 @@ Package and maintain the Bounded Runtime Harness ChatGPT/Codex plugin.
 
 ## Architecture
 - Marketplace: `.agents/plugins/marketplace.json` source `url` `./`.
-- Manifest: `.codex-plugin/plugin.json` with `hooks` `{}`.
+- Manifest: `.codex-plugin/plugin.json`; default-discovered hooks do not require a `hooks` field.
+- Native hooks: Codex discovers `<plugin-root>/hooks/hooks.json` by default.
+- Hook config uses Codex matcher groups and command handlers; commands resolve plugin files through `${PLUGIN_ROOT}`.
+- Packaged hook plugins must include `hooks/` and verify the installed package through native `hooks/list`.
 - Skills: `skills/{governance,bounded-runtime-harness}/`.
 - Package script: `scripts/package-codex-plugin.sh`.
 - Reference runtime stays under `skills/bounded-runtime-harness/assets/reference/`.
