@@ -6,12 +6,12 @@ Apply after every model generation and before any write or commit.
 
 1. **Parse / compile**
    - Markdown files must have the required headings for their type.
-   - JSON files (`plugin.json`, `marketplace.json`, `*.schema.json`) must parse.
-   - Python under `assets/reference/brv/` and `assets/reference/tests/` must pass `ast.parse`.
+   - JSON files (`plugin.json`, `marketplace.json`, `hooks.json`, `*.schema.json`) must parse.
+   - Python under `assets/reference/brv/`, `assets/reference/tests/`, and `hooks/` must pass `ast.parse`.
    - Reject invalid output. Do not silently patch it in place.
 
 2. **Scope**
-   - Allowed roots: `plugins/bounded-runtime-harness/`, `.agents/plugins/`, `.harness/`, `.governance/`, `scripts/`, and root identity files (`README.md`, `AGENTS.md`, `CLAUDE.md`, `CONTEXT.md`, `LICENSE`, `.gitignore`).
+   - Allowed roots: `plugins/bounded-runtime-harness/`, `skills/`, `hooks/`, `tests/codex/`, `.agents/plugins/`, `.harness/`, `.governance/`, `scripts/`, and root identity files (`README.md`, `AGENTS.md`, `CLAUDE.md`, `CONTEXT.md`, `LICENSE`, `.gitignore`).
    - Reject paths outside those roots.
 
 3. **Secrets**
@@ -24,6 +24,7 @@ Apply after every model generation and before any write or commit.
 
 5. **Contract preview**
    - Review-repair generations must not add files, bump `plugin.json` version, grow public exports, or expand the marketplace structure declaration.
+   - Native-hook feature generations must preserve Codex default discovery at `hooks/hooks.json`, use the native matcher-group shape, and not require a manifest `hooks` field for the default path.
    - Feature work must not claim ChatGPT UI decoder masking.
 
 6. **Accept / reject / retry**
