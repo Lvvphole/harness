@@ -10,14 +10,15 @@ Read this file to decide which context to load. Each section defines a task type
 
 - Harness: `.harness/evals.md`, `.harness/inference-loop.md`, `.harness/runtime-loop.md`, `.harness/contracts/feature-development.md`
 - Policy: `.governance/testing.md`, `.governance/security.md`, `.governance/style.md`
-- Working: `skills/`, `.codex-plugin/`, `.agents/plugins/`, `.harness/`, `.governance/`, `scripts/`, `tests/codex/`
+- Working: `skills/`, `hooks/`, `.codex-plugin/`, `.agents/plugins/`, `.harness/`, `.governance/`, `scripts/`, `tests/codex/`
 
 ### Process
 
 1. Confirm the oracle in `.harness/contracts/feature-development.md`.
 2. Add or extend a failing golden before writing feature code.
 3. Implement inside allowed paths.
-4. Re-run the contract oracles after mutation.
+4. For native hooks, preserve Codex default discovery at `hooks/hooks.json` and use the native matcher-group schema.
+5. Re-run the contract oracles after mutation.
 
 ### Outputs
 
@@ -165,18 +166,21 @@ Satisfy `.harness/contracts/documentation.md`. Do not accept a proxy.
 
 - Harness: `.harness/evals.md`, `.harness/inference-loop.md`, `.harness/runtime-loop.md`, `.harness/contracts/plugin-packaging.md`
 - Policy: `.governance/testing.md`, `.governance/security.md`
-- Working: `.codex-plugin/`, `skills/`, `.agents/plugins/`, `scripts/package-codex-plugin.sh`, `tests/codex/`
+- Working: `.codex-plugin/`, `skills/`, `hooks/`, `.agents/plugins/`, `scripts/package-codex-plugin.sh`, `tests/codex/`
 
 ### Process
 
 1. Confirm the oracle.
 2. Keep `.codex-plugin/plugin.json` as the only file in `.codex-plugin/`.
-3. Keep skill folder names aligned with SKILL.md `name` fields.
-4. Parse both JSON manifests after every edit.
+3. Use Codex default hook discovery at `<plugin-root>/hooks/hooks.json`; do not require a manifest `hooks` field for that default path.
+4. Keep hook JSON in Codex's native event → matcher-group → command-handler shape.
+5. Keep skill folder names aligned with SKILL.md `name` fields.
+6. Parse both JSON manifests after every edit.
+7. Package `hooks/` when native hooks are present and verify the installed artifact with native `hooks/list`.
 
 ### Outputs
 
-A loadable skills-only plugin and a valid repo marketplace entry.
+A loadable plugin and a valid repo marketplace entry whose packaged capabilities match the source tree.
 
 ### Verification
 
