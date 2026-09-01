@@ -1,0 +1,221 @@
+{
+  "schema_version": "1.0",
+  "source_prs": [14, 15, 16, 17, 18],
+  "expected_counts": {
+    "total": 21,
+    "P1": 17,
+    "P2": 4
+  },
+  "cases": [
+    {
+      "id": "PR14-P1-01",
+      "pr": 14,
+      "severity": "P1",
+      "family": "native-loadability",
+      "defect": "Manifest hook declaration contradicted the package contract",
+      "invariant": "One Codex-native hook discovery rule governs manifest, tests, packaging, and installation.",
+      "reproducer": "Validate the packaged manifest and install the exact package under current Codex plugin ingestion.",
+      "expected": "Default-discovered hooks do not require a manifest hooks field; the package is accepted by the current Codex manifest validator."
+    },
+    {
+      "id": "PR14-P1-02",
+      "pr": 14,
+      "severity": "P1",
+      "family": "native-loadability",
+      "defect": "Hook config used a non-native schema and hooks/list returned no hooks",
+      "invariant": "hooks/hooks.json uses Codex event to matcher-group to command-handler structure.",
+      "reproducer": "Install the exact artifact and query native hooks/list.",
+      "expected": "Required plugin hook events are listed from hooks/hooks.json with zero parse warnings or errors."
+    },
+    {
+      "id": "PR14-P1-03",
+      "pr": 14,
+      "severity": "P1",
+      "family": "authorization",
+      "defect": "No accepted-proposal transition could authorize legitimate writes",
+      "invariant": "Mutation requires a validated accepted proposal identity before execution.",
+      "reproducer": "Submit the same legitimate write before and after proposal acceptance.",
+      "expected": "Pre-acceptance write is denied; post-acceptance write is allowed only with the accepted proposal binding."
+    },
+    {
+      "id": "PR14-P1-04",
+      "pr": 14,
+      "severity": "P1",
+      "family": "authorization",
+      "defect": "Empty command allow-list failed open",
+      "invariant": "Missing or empty command allow-list denies generic command execution.",
+      "reproducer": "Grant run_command while allowed_commands is empty and request a Bash command.",
+      "expected": "DENY"
+    },
+    {
+      "id": "PR15-P1-01",
+      "pr": 15,
+      "severity": "P1",
+      "family": "contract-schema",
+      "defect": "Partial active contracts passed validation",
+      "invariant": "Only a complete schema-valid active contract can authorize a tool request.",
+      "reproducer": "Remove task_type, predicates, required list items, or required budget fields from an otherwise valid contract.",
+      "expected": "Contract validation fails closed before authorization."
+    },
+    {
+      "id": "PR15-P1-02",
+      "pr": 15,
+      "severity": "P1",
+      "family": "mutation-policy",
+      "defect": "Enabled mutation predicates were not enforced",
+      "invariant": "Every enabled mutation predicate is evaluated before a patch can execute.",
+      "reproducer": "Use a review-repair contract and propose a new file, multiple files, a version bump, public-surface growth, or positive net line growth.",
+      "expected": "DENY for every violated predicate."
+    },
+    {
+      "id": "PR15-P1-03",
+      "pr": 15,
+      "severity": "P1",
+      "family": "path-scope",
+      "defect": "Read tools ignored allowed path scope",
+      "invariant": "Read authority is path-scoped and cannot escape the active contract or repository sandbox.",
+      "reproducer": "Allow read_file for src/ and request Read, Grep, Glob, or read_file outside src/.",
+      "expected": "DENY"
+    },
+    {
+      "id": "PR15-P2-01",
+      "pr": 15,
+      "severity": "P2",
+      "family": "provenance",
+      "defect": "Post-tool result could bind to a different active contract than the accepted proposal",
+      "invariant": "Proposal contract identity and proposal hash are immutable across execution and result recording.",
+      "reproducer": "Accept a proposal, change the active contract, then submit PostToolUse for the accepted tool_use_id.",
+      "expected": "Result remains bound to the accepted proposal identity or is BLOCKED; it is never rebound to the new contract."
+    },
+    {
+      "id": "PR16-P1-01",
+      "pr": 16,
+      "severity": "P1",
+      "family": "contract-schema",
+      "defect": "Review-repair contracts could disable mandatory predicates",
+      "invariant": "Task semantics constrain review-repair predicate values, not only predicate field types.",
+      "reproducer": "Create a schema-valid review-repair contract with any mandatory predicate false.",
+      "expected": "Contract validation fails closed."
+    },
+    {
+      "id": "PR16-P1-02",
+      "pr": 16,
+      "severity": "P1",
+      "family": "public-surface",
+      "defect": "Python public function growth escaped edit-patch detection",
+      "invariant": "Public-surface checks inspect the resulting Python structure rather than diff syntax alone.",
+      "reproducer": "Replace def _private() with def public() while keeping line count net-zero.",
+      "expected": "DENY under forbid_public_export_growth."
+    },
+    {
+      "id": "PR16-P1-03",
+      "pr": 16,
+      "severity": "P1",
+      "family": "path-scope",
+      "defect": "Symlinked read path escaped the repository sandbox",
+      "invariant": "Filesystem scope uses resolved containment in addition to lexical repository-path identity.",
+      "reproducer": "Allow src/, make src/out a symlink to a host path outside the repository, then read src/out.",
+      "expected": "DENY"
+    },
+    {
+      "id": "PR16-P1-04",
+      "pr": 16,
+      "severity": "P1",
+      "family": "provenance",
+      "defect": "PostToolUse without an accepted proposal returned success",
+      "invariant": "Every result must bind to an existing accepted proposal for the same tool_use_id and tool input.",
+      "reproducer": "Submit PostToolUse with a fresh tool_use_id that has no accepted proposal.",
+      "expected": "BLOCK or fail closed; never record a successful unbound result."
+    },
+    {
+      "id": "PR17-P1-01",
+      "pr": 17,
+      "severity": "P1",
+      "family": "path-scope",
+      "defect": "Path normalization stripped meaningful leading dots",
+      "invariant": "Canonical repository-path normalization removes only an exact optional ./ prefix and preserves dot-prefixed path identity.",
+      "reproducer": "Allow .codex-plugin/, .harness/, .governance/, or .agents/plugins/ and request a file beneath that root.",
+      "expected": "The matching dot-prefixed path remains in scope."
+    },
+    {
+      "id": "PR17-P1-02",
+      "pr": 17,
+      "severity": "P1",
+      "family": "task-routing",
+      "defect": "plugin-packaging was omitted from the active-contract task enum",
+      "invariant": "Every CONTEXT-routed task type used by the runtime is admitted by the contract schema.",
+      "reproducer": "Validate an otherwise correct plugin-packaging active contract.",
+      "expected": "PASS contract validation."
+    },
+    {
+      "id": "PR17-P2-01",
+      "pr": 17,
+      "severity": "P2",
+      "family": "tool-mapping",
+      "defect": "run_oracle-only contracts could not invoke native Bash",
+      "invariant": "Native tool translation preserves least privilege and maps exact oracle commands to run_oracle without requiring generic run_command.",
+      "reproducer": "Grant run_oracle, deny run_command, and invoke an exact configured oracle through native Bash.",
+      "expected": "ALLOW as oracle execution only."
+    },
+    {
+      "id": "PR17-P2-02",
+      "pr": 17,
+      "severity": "P2",
+      "family": "public-surface",
+      "defect": "Indented Python public methods escaped regex-based surface detection",
+      "invariant": "Python public-surface checks include callable class members in the resulting AST.",
+      "reproducer": "Add a public class method while removing an unrelated line so net line growth is non-positive.",
+      "expected": "DENY under forbid_public_export_growth."
+    },
+    {
+      "id": "PR18-P1-01",
+      "pr": 18,
+      "severity": "P1",
+      "family": "path-scope",
+      "defect": "Leading-dot path failure repeated",
+      "invariant": "The canonical path model is shared; adapter code does not reimplement character stripping.",
+      "reproducer": "Repeat the dot-prefixed allowed-root corpus through the native hook adapter.",
+      "expected": "All matching paths remain in scope with exact identity preserved."
+    },
+    {
+      "id": "PR18-P1-02",
+      "pr": 18,
+      "severity": "P1",
+      "family": "governance-prohibitions",
+      "defect": "Contract allow-list could authorize push to main or force-push",
+      "invariant": "Unconditional repository prohibitions are evaluated before contract grants.",
+      "reproducer": "Put git push origin main or a force-push command in allowed_commands and request it through native Bash.",
+      "expected": "DENY"
+    },
+    {
+      "id": "PR18-P1-03",
+      "pr": 18,
+      "severity": "P1",
+      "family": "governance-prohibitions",
+      "defect": "Contract scope could authorize deletion of protected governance trees",
+      "invariant": "Deletion of .harness/ or .governance/ is denied independently of contract path scope.",
+      "reproducer": "Allow repository root writes and request deletion of a file under .harness/ or .governance/.",
+      "expected": "DENY"
+    },
+    {
+      "id": "PR18-P1-04",
+      "pr": 18,
+      "severity": "P1",
+      "family": "task-routing",
+      "defect": "plugin-packaging task omission repeated",
+      "invariant": "Task routing and contract-schema identities are generated from or checked against one authoritative set.",
+      "reproducer": "Route and load the plugin-packaging contract through the native hook path.",
+      "expected": "Contract is admitted and available to policy evaluation."
+    },
+    {
+      "id": "PR18-P2-01",
+      "pr": 18,
+      "severity": "P2",
+      "family": "tool-mapping",
+      "defect": "Oracle-only native Bash mapping failure repeated",
+      "invariant": "The adapter has one native-to-canonical capability mapping used by all Bash authorization paths.",
+      "reproducer": "Repeat an exact oracle command with run_oracle granted and run_command denied through native Bash.",
+      "expected": "ALLOW as run_oracle without broadening the contract."
+    }
+  ]
+}
