@@ -12,6 +12,8 @@ A failing golden or test is reproduced first, then the defect is fixed, then the
 - expect: exit 0
 - cmd: `python3 skills/bounded-runtime-harness/assets/reference/tests/test_harness.py`
 - expect: exit 0
+- cmd: `python3 tests/codex/test_hooks.py` when hooks are affected
+- expect: exit 0
 
 ## Invariants
 

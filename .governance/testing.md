@@ -19,6 +19,7 @@ python3 skills/bounded-runtime-harness/assets/reference/tests/test_harness.py
 ```bash
 bash tests/codex/test-marketplace-manifest.sh
 bash tests/codex/test-package-codex-plugin.sh
+python3 tests/codex/test_hooks.py
 ```
 
 ## Coverage thresholds
@@ -30,13 +31,14 @@ This repository does not yet publish a coverage percentage. The pass bar is exit
 1. `bash scripts/eval-governance-tree.sh .`
 2. Parse `.codex-plugin/plugin.json` and `.agents/plugins/marketplace.json`.
 3. If plugin skill files changed, run both skill eval scripts and `test_harness.py`.
+4. If hooks changed, run `test_hooks.py` and the package archive test.
 
 ## Binding table
 
 | CONTEXT task | Contract | Oracle commands |
 | --- | --- | --- |
 | feature-development | `.harness/contracts/feature-development.md` | governance tree, BRH skill eval, `test_harness.py`, plugin.json parse |
-| bug-fix | `.harness/contracts/bug-fix.md` | governance tree, BRH skill eval, `test_harness.py` |
+| bug-fix | `.harness/contracts/bug-fix.md` | governance tree, BRH skill eval, `test_harness.py`; add `test_hooks.py` when hooks are affected |
 | review-repair | `.harness/contracts/review-repair.md` | governance tree plus the finding's command; `git diff --name-only` must show one existing file |
 | refactor | `.harness/contracts/refactor.md` | `test_harness.py`, BRH skill eval, governance tree |
 | testing | `.harness/contracts/testing.md` | `test_harness.py`, BRH skill eval, governance tree |

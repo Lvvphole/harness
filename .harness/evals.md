@@ -19,6 +19,7 @@ Prefer deterministic oracles: shell assertions, JSON Schema parse, Python `ast.p
 | Marketplace source is repo root | marketplace `plugins[0].source.url` equals `./` | boolean true |
 | Plugin name is kebab-case | manifest `name` equals `bounded-runtime-harness` | boolean true |
 | Skills path present | manifest `skills` equals `./skills/` | boolean true |
+| Native Codex hook contract | `python3 tests/codex/test_hooks.py` | exit 0 |
 
 ## Metrics
 
@@ -26,7 +27,8 @@ Prefer deterministic oracles: shell assertions, JSON Schema parse, Python `ast.p
 2. **Skill packaging integrity** — oracle: both `eval-skill.sh` scripts. Failure mode: skill body or schemas drift from the packaged contract.
 3. **Forbidden-action rejection** — oracle: `test_harness.py`. Failure mode: out-of-scope write, unauthorized `write_file`, hash-mismatched commit.
 4. **Manifest validity** — oracle: JSON parse of `plugin.json` and `marketplace.json`. Failure mode: broken install identity.
-5. **Line-cap compliance** — oracle: `wc -l` on `AGENTS.md` and `CLAUDE.md`. Failure mode: identity files too large to load reliably.
+5. **Native hook integrity** — oracle: `test_hooks.py`. Failure mode: invalid wire shape, fail-open authorization, path escape, or unbound result evidence.
+6. **Line-cap compliance** — oracle: `wc -l` on `AGENTS.md` and `CLAUDE.md`. Failure mode: identity files too large to load reliably.
 
 ## Thresholds
 
@@ -34,13 +36,14 @@ Prefer deterministic oracles: shell assertions, JSON Schema parse, Python `ast.p
 - Skill packaging integrity: exit 0 for both skills.
 - Forbidden-action rejection: every required case in `test_harness.py` passes.
 - Manifest validity: both JSON files parse; required fields `name`, `version`, `description`, `skills` present.
+- Native hook integrity: every case in `test_hooks.py` passes.
 - Line-cap compliance: `CLAUDE.md` ≤ 30 lines; `AGENTS.md` ≤ 100 lines.
 
 ## Loop binding
 
 - `.harness/inference-loop.md` runs parse/compile, scope, secrets, injection, and contract-preview on every generation. Metrics 4 and 5 are cheap enough for this loop.
 - `.harness/runtime-loop.md` gates tool permission, sandbox path, budget, and re-eval after mutation. Metrics 1–3 run after any write that touches plugin skills, manifests, or governance files.
-- Metrics 1–3 also run at task completion. Task contracts name the exact commands.
+- Metrics 1–5 also run at task completion. Task contracts name the exact commands.
 
 ## Regression policy
 

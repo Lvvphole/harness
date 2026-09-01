@@ -7,11 +7,11 @@ Apply after every model generation and before any write or commit.
 1. **Parse / compile**
    - Markdown files must have the required headings for their type.
    - JSON files (`plugin.json`, `marketplace.json`, `*.schema.json`) must parse.
-   - Python under `assets/reference/brv/` and `assets/reference/tests/` must pass `ast.parse`.
+   - Python under `hooks/`, `tests/codex/`, `assets/reference/brv/`, and `assets/reference/tests/` must pass `ast.parse`.
    - Reject invalid output. Do not silently patch it in place.
 
 2. **Scope**
-   - Allowed roots: `plugins/bounded-runtime-harness/`, `.agents/plugins/`, `.harness/`, `.governance/`, `scripts/`, and root identity files (`README.md`, `AGENTS.md`, `CLAUDE.md`, `CONTEXT.md`, `LICENSE`, `.gitignore`).
+   - Allowed roots: `hooks/`, `tests/codex/`, `plugins/bounded-runtime-harness/`, `.agents/plugins/`, `.harness/`, `.governance/`, `scripts/`, and root identity files (`README.md`, `AGENTS.md`, `CLAUDE.md`, `CONTEXT.md`, `LICENSE`, `.gitignore`).
    - Reject paths outside those roots.
 
 3. **Secrets**

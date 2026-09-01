@@ -14,6 +14,8 @@ A scoped feature lands in the plugin package or governance tree and every listed
 - expect: exit 0
 - cmd: `python3 -c "import json; json.load(open('.codex-plugin/plugin.json'))"`
 - expect: exit 0
+- cmd: `python3 tests/codex/test_hooks.py` when hooks are affected
+- expect: exit 0
 
 ## Invariants
 
@@ -25,7 +27,7 @@ A scoped feature lands in the plugin package or governance tree and every listed
 
 - max files: 20
 - max turns: 30
-- allowed paths: `skills/`, `.codex-plugin/`, `.agents/plugins/`, `.harness/`, `.governance/`, `scripts/`, `tests/codex/`, root identity files
+- allowed paths: `hooks/`, `skills/`, `.codex-plugin/`, `.agents/plugins/`, `.harness/`, `.governance/`, `scripts/`, `tests/codex/`, root identity files
 
 ## Done when
 
