@@ -19,7 +19,7 @@ python3 skills/bounded-runtime-harness/assets/reference/tests/test_harness.py
 ```bash
 bash tests/codex/test-marketplace-manifest.sh
 bash tests/codex/test-package-codex-plugin.sh
-python3 tests/codex/test-native-hooks-acceptance.py
+python3 tests/codex/test-native-hooks-acceptance.py --corpus-only
 ```
 
 ## Coverage thresholds
@@ -31,7 +31,7 @@ This repository does not yet publish a coverage percentage. The pass bar is exit
 1. `bash scripts/eval-governance-tree.sh .`
 2. Parse `.codex-plugin/plugin.json` and `.agents/plugins/marketplace.json`.
 3. If plugin skill files changed, run both skill eval scripts and `test_harness.py`.
-4. If native hooks, hook packaging, or hook policy changed, run `test-native-hooks-acceptance.py` and the package test.
+4. During the governance/acceptance-freeze phase, run `test-native-hooks-acceptance.py --corpus-only`; successor implementation must use the full behavioral oracle and package test.
 
 ## Binding table
 
