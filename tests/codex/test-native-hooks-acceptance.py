@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-
 import argparse
 import hashlib
 import json
@@ -8,7 +7,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 from typing import Any
-
+FROZEN_CORPUS_SHA256 = "96b624973c8de2abf26aa06e78fcada0c251eeb79a80d8a19ae1dd635542ba95"
 REQUIRED_EVENTS = (
     "SessionStart",
     "UserPromptSubmit",
@@ -73,6 +72,8 @@ def validate_corpus(repo: Path, errors: list[str]) -> str:
     path = repo / "tests/codex/native-hooks-acceptance.json"
     raw = path.read_bytes() if path.exists() else b""
     corpus_sha256 = hashlib.sha256(raw).hexdigest()
+    if corpus_sha256 != FROZEN_CORPUS_SHA256:
+        fail(errors, f"frozen corpus SHA-256 mismatch: {corpus_sha256}")
     data = load_json(path, errors)
     cases = data.get("cases")
     if not isinstance(cases, list):
