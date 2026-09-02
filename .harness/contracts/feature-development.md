@@ -15,9 +15,15 @@ A scoped feature lands in the plugin package or governance tree and every listed
 - cmd: `python3 -c "import json; json.load(open('.codex-plugin/plugin.json'))"`
 - expect: exit 0
 
+When `hooks/`, hook packaging, or native-hook policy is in scope:
+
+- cmd: `python3 tests/codex/test-native-hooks-acceptance.py`
+- expect: exit 0
+
 ## Invariants
 
 - Stay inside allowed paths from `.harness/inference-loop.md`.
+- Native hooks use Codex default discovery at `hooks/hooks.json` unless an explicit custom-path requirement says otherwise.
 - Do not declare done on a proxy check.
 - Do not claim ChatGPT UI decoder control.
 
@@ -25,11 +31,11 @@ A scoped feature lands in the plugin package or governance tree and every listed
 
 - max files: 20
 - max turns: 30
-- allowed paths: `skills/`, `.codex-plugin/`, `.agents/plugins/`, `.harness/`, `.governance/`, `scripts/`, `tests/codex/`, root identity files
+- allowed paths: `skills/`, `hooks/`, `.codex-plugin/`, `.agents/plugins/`, `.harness/`, `.governance/`, `scripts/`, `tests/codex/`, root identity files
 
 ## Done when
 
-- Every oracle above has passing output in this session.
+- Every applicable oracle above has passing output in this session.
 - No golden listed in `.harness/evals.md` regressed.
 - Inference-loop and runtime-loop accepted the final generation.
 

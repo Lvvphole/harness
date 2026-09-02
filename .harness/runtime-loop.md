@@ -22,9 +22,12 @@ Apply before each tool call and at the end of each turn.
    - Halt on review-repair invariant violation.
    - Halt on budget exhaustion.
    - Halt on repeated identical failure.
+   - Halt when the active task's explicit phase stop condition is reached.
 
 5. **Re-eval after mutation**
-   - After any write under `plugins/`, run the matching `eval-skill.sh` or JSON parse.
+   - After any write under `plugins/` or `skills/`, run the matching `eval-skill.sh` or JSON parse.
+   - After any write under `hooks/`, run `python3 tests/codex/test-native-hooks-acceptance.py`.
+   - After any write to `.codex-plugin/` or `scripts/package-codex-plugin.sh`, run the Codex manifest/package tests and the native-hooks acceptance test when hooks are in scope.
    - After any write under `.harness/` or `.governance/`, run `bash scripts/eval-governance-tree.sh .`.
    - After any write to Python reference code or tests, run `test_harness.py`.
    - Do not batch all mutations and evaluate once if a mid-loop failure should have stopped the work.

@@ -20,6 +20,8 @@ Map: OWASP AST03, NIST Human-AI Configuration.
 
 ## Forbidden actions
 
+These prohibitions are unconditional and take precedence over active-contract allow-lists.
+
 - Do not delete production data.
 - Do not edit authentication configuration on remote accounts.
 - Do not push to `main`.
@@ -53,6 +55,9 @@ In-scope:
 
 - this clone
 - `plugins/bounded-runtime-harness/`
+- `skills/`
+- `hooks/`
+- `tests/codex/`
 - `.agents/plugins/`
 - `.harness/`, `.governance/`, `scripts/`
 - root identity files listed in the inference loop
@@ -63,6 +68,8 @@ Off-limits:
 - host secret stores
 - production systems
 - decoder internals of ChatGPT UI
+
+Native hook path decisions must preserve meaningful leading dots, resolve requested filesystem targets against the workspace, and deny resolved targets outside the authorized repository roots. Hook state/evidence must use runtime data storage rather than modifying protected governance trees.
 
 Map: OWASP AST06, NIST Information Security.
 
